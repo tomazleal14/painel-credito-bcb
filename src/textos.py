@@ -1,0 +1,170 @@
+"""
+textos.py -- LEITURA / REFERENCIA / CONSEQUENCIA de cada visualizacao.
+
+Regra do trabalho: exatamente 4 visualizacoes por pergunta, cada uma com os tres textos.
+Separado do app para poder ser revisado como texto, sem mexer em codigo.
+"""
+from __future__ import annotations
+
+LRC = {
+    # ---------------------------------------------------------------- P1
+    "p1_1": {
+        "titulo": "Crescimento real da carteira × participação de mercado",
+        "leitura": "Cada bolha é uma instituição: no eixo x, quanto a carteira cresceu em 12 meses "
+                   "já descontada a inflação; no eixo y, a fatia que ela ocupa na carteira do universo. "
+                   "O tamanho da bolha é a carteira em R$.",
+        "referencia": "As linhas marcam a mediana de crescimento do universo no trimestre e o limiar "
+                      "de 15% a.a. real. Quem está à direita da linha tracejada cresce acima do "
+                      "que o sistema considera ritmo normal.",
+        "consequencia": "Instituições à direita da mediana entram na triagem inicial. Crescer rápido "
+                        "não é irregularidade — é o filtro que define quem será examinado em P2 e P3.",
+    },
+    "p1_2": {
+        "titulo": "Carteira observada × tendência de longo prazo (filtro HP)",
+        "leitura": "Para cada instituição sinalizada, a carteira real observada contra sua própria "
+                   "tendência estimada. O afastamento entre as duas linhas é o credit gap.",
+        "referencia": "A comparação é com a PRÓPRIA história da instituição, não com o sistema. "
+                      "Uma IF pequena que dobra de tamanho aparece aqui mesmo sem peso sistêmico.",
+        "consequencia": "Separa boom de ruído: crescimento alto que apenas retoma a tendência é "
+                        "recuperação; afastamento persistente acima da tendência é expansão que "
+                        "merece exame.",
+    },
+    "p1_3": {
+        "titulo": "Crescimento por modalidade de maior risco",
+        "leitura": "Crescimento real anual da carteira em cartão de crédito e empréstimo sem "
+                   "consignação, por instituição — as modalidades sem garantia e de maior spread.",
+        "referencia": "Comparado ao crescimento da mesma modalidade no sistema (SCR.data), não ao "
+                      "crescimento total da instituição.",
+        "consequencia": "Direciona P2. Onde o crescimento se concentra importa mais que o total: "
+                        "expansão puxada por rotativo e sem garantia muda a natureza do risco.",
+    },
+    "p1_4": {
+        "titulo": "Crescimento da carteira × crescimento do capital",
+        "leitura": "Razão entre o crescimento da carteira e o crescimento do Patrimônio de "
+                   "Referência, por instituição, nos últimos 12 meses.",
+        "referencia": "A linha em 1,0 é o crescimento pari passu: carteira e capital avançando "
+                      "no mesmo ritmo.",
+        "consequencia": "Acima de 1,0 a instituição cresce consumindo folga prudencial. Combinado "
+                        "com baixa folga de Basileia em P3, indica urgência maior na ação.",
+    },
+    # ---------------------------------------------------------------- P2
+    "p2_1": {
+        "titulo": "Concentração do sistema: HHI e CR5",
+        "leitura": "Evolução trimestral do índice Herfindahl-Hirschman e da fatia dos cinco maiores "
+                   "na carteira de crédito do universo.",
+        "referencia": "As faixas de 1.500 e 2.500 são os patamares antitruste usuais para mercado "
+                      "moderadamente e altamente concentrado.",
+        "consequencia": "Define o pano de fundo sistêmico. Num mercado já concentrado, o crescimento "
+                        "rápido de um grande tem consequência sistêmica diferente da de um pequeno.",
+    },
+    "p2_2": {
+        "titulo": "Composição da carteira de pessoa física por modalidade",
+        "leitura": "Para as instituições sinalizadas em P1, a repartição da carteira PF entre "
+                   "cartão, sem consignação, consignado, veículos, habitação e rural.",
+        "referencia": "Comparada à composição média do universo e ao perfil do sistema no SCR.data.",
+        "consequencia": "Mostra a NATUREZA do risco. Duas instituições com o mesmo crescimento "
+                        "exigem ações diferentes se uma cresce em consignado e a outra em rotativo.",
+    },
+    "p2_3": {
+        "titulo": "Concentração geográfica da carteira",
+        "leitura": "Distribuição da carteira entre as cinco regiões e o HHI regional resultante, "
+                   "por instituição.",
+        "referencia": "HHI regional do universo. Valores próximos de 10.000 indicam atuação "
+                      "praticamente em uma única região.",
+        "consequencia": "Concentração regional transforma choque local em choque da instituição "
+                        "inteira. Eleva a prioridade quando somada a crescimento acelerado.",
+    },
+    "p2_4": {
+        "titulo": "Dependência de funding × crescimento",
+        "leitura": "Razão carteira/captações no eixo y contra o crescimento real da carteira no "
+                   "eixo x. Bolha = tamanho da carteira.",
+        "referencia": "A linha em 1,0 marca a carteira igual às captações; a mediana dos pares "
+                      "do mesmo tipo de instituição é a referência de comparação.",
+        "consequencia": "Crescer rápido com funding curto é um dos cinco sinais de boom ruim do FMI. "
+                        "O canto superior direito concentra as duas condições ao mesmo tempo.",
+    },
+    # ---------------------------------------------------------------- P3
+    "p3_1": {
+        "titulo": "GRÁFICO-ASSINATURA — crescimento × inadimplência × cobertura",
+        "leitura": "Cada bolha é uma instituição. Eixo x: crescimento real da carteira em 12 meses. "
+                   "Eixo y: inadimplência sobre a carteira. Tamanho: carteira em R$. "
+                   "Cor: cobertura de provisões (vermelho = provisão baixa frente ao atraso).",
+        "referencia": "As linhas cruzam na mediana de crescimento e na mediana de inadimplência do "
+                      "universo. O retângulo destacado é o quadrante de atenção prioritária.",
+        "consequencia": "O quadrante inferior direito — cresce muito, inadimplência ainda baixa, "
+                        "provisão baixa — é a AGENDA. Ali a inadimplência baixa provavelmente não é "
+                        "qualidade: é carteira nova que ainda não maturou.",
+    },
+    "p3_2": {
+        "titulo": "Efeito denominador: inadimplência corrente × ajustada ao crescimento",
+        "leitura": "Para cada instituição, a inadimplência calculada sobre a carteira ATUAL e sobre "
+                   "a carteira de quatro trimestres antes — a base que de fato originou o atraso.",
+        "referencia": "A diagonal marca a igualdade entre as duas medidas. Quanto mais acima da "
+                      "diagonal, mais o crescimento está diluindo o indicador.",
+        "consequencia": "Instituições muito acima da diagonal têm inadimplência divulgada "
+                        "artificialmente baixa. É a correção central do trabalho e pode inverter "
+                        "a ordem de prioridade da agenda.",
+    },
+    "p3_3": {
+        "titulo": "Cobertura de provisões e ativos problemáticos",
+        "leitura": "Cobertura (provisão ÷ atraso) no eixo x e ativos problemáticos sobre a carteira "
+                   "no eixo y, por instituição sinalizada.",
+        "referencia": "A linha vertical em 100% é a cobertura integral do atraso; a horizontal "
+                      "é o percentual de ativos problemáticos do sistema no SCR.data.",
+        "consequencia": "Cobertura abaixo de 100% com ativos problemáticos acima do sistema indica "
+                        "perda ainda não reconhecida. Antecipa a ação de supervisão.",
+    },
+    "p3_4": {
+        "titulo": "Folga de capital sobre o mínimo regulatório",
+        "leitura": "Distância em pontos percentuais entre o Índice de Basileia de cada instituição "
+                   "e o mínimo de referência.",
+        "referencia": "O mínimo adotado é 10,5% (8% de requisito mais 2,5% de conservação). "
+                      "Adicionais contracíclicos e de importância sistêmica podem elevar esse piso.",
+        "consequencia": "Folga pequena limita a capacidade de absorver perdas inesperadas. "
+                        "Define a URGÊNCIA: mesma deterioração exige ação mais rápida em quem "
+                        "tem menos capital sobrando.",
+    },
+}
+
+NAO_PERMITE_CONCLUIR = """
+### O que este painel **não** permite concluir
+
+**1. Não identifica o tomador nem a safra.** O IF.data é trimestral e agregado por instituição.
+Não se enxerga operação individual, nem safra (*vintage*), nem o devedor. A "inadimplência
+ajustada ao crescimento" é uma aproximação do efeito denominador — **não** substitui uma
+análise de safras, que exigiria o SCR operação a operação (dado protegido por sigilo bancário).
+
+**2. Não mede concentração em poucos devedores.** O indicador P2 nº 5 usa a fatia da carteira
+PJ em **tomadores de grande porte**, publicada diretamente pelo IF.data por instituição. Isso
+mede exposição ao *segmento* de grandes tomadores — onde vive o risco de nome único —, mas
+**não é um Herfindahl sobre devedores**: um banco com muitos clientes grandes aparece igual a
+um com poucos. O SCR agregado publicado não divulga exposição por devedor, então concentração
+em poucos nomes e verificação de limites de grandes exposições ficam fora do alcance do painel.
+O indicador é **PJ-only**: instituições sem carteira PJ (emissores puros de cartão) ficam com
+o campo vazio e não pontuam nesse item.
+
+**3. Não compara 2024 com 2025 em qualidade de crédito.** A Res. CMN 4.966/2021 substituiu a
+classificação AA–H por perda esperada em 01/01/2025, e os relatórios mudaram de universo
+(tipo 1005 → 1009). A validação cruzada mostrou que a soma dos níveis E–H fica cerca de
+**2,5 p.p. acima** da inadimplência de 90 dias. São conceitos distintos: o painel os mantém
+separados e **não** traça uma linha contínua entre eles.
+
+**4. Não afirma irregularidade, insolvência nem culpa.** O painel sinaliza **candidatos a exame**
+segundo critérios públicos e explícitos. Crescer rápido não é infração; provisão baixa pode
+refletir carteira legitimamente melhor. A conclusão é uma agenda de verificação, não um veredito.
+
+**5. Não enxerga o que não está no balanço.** Cessões de crédito, coobrigação, exposições fora
+do balanço, risco de mercado e liquidez ficam fora do recorte destes relatórios.
+
+**6. Não permite leitura regional de longo prazo.** O ESTBAN publica apenas os **últimos 6 meses**.
+A concentração regional aqui é um corte transversal, não uma tendência. Além disso o ESTBAN
+cobre só bancos comerciais e múltiplos com carteira comercial — não todo o SFN.
+
+**7. Não é a carteira do SGS.** A carteira do IF.data é de 7% a 12% maior que a série SGS 20539,
+por diferença de recorte (inclui arrendamento e outras operações com característica de crédito).
+Os números **não** são intercambiáveis com as estatísticas monetárias e de crédito.
+
+**8. Dados sujeitos a reapresentação.** O próprio IF.data adverte que, na data-base de dezembro,
+os quatro trimestres anteriores são republicados com informações mais recentes. Os valores
+podem mudar após a data de extração registrada nas notas de verificação.
+"""

@@ -1,0 +1,15 @@
+# Tema do Streamlit -- espelha as cores base de src/tema.py.
+# Para mudar a aparencia, edite ESTE arquivo e src/tema.py.
+[theme]
+base = "light"
+primaryColor = "#0F4C5C"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F5F7F8"
+textColor = "#1A2428"
+font = "sans serif"
+
+[server]
+maxUploadSize = 5
+
+[browser]
+gatherUsageStats = false

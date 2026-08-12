@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="UTF-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><soapenv:Body><getUltimoValorXMLResponse soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><getUltimoValorXMLReturn xsi:type="soapenc:string" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/">&lt;?xml version='1.0' encoding='ISO-8859-1'?&gt;
+&lt;resposta status='2' descricao='Processado com sucesso'&gt;
+&lt;SERIE&gt;
+	&lt;NOME&gt;Saldo da carteira de cr&#xE9;dito em rela&#xE7;&#xE3;o ao PIB&lt;/NOME&gt;
+	&lt;CODIGO&gt;20622&lt;/CODIGO&gt;
+	&lt;PERIODICIDADE&gt;M&lt;/PERIODICIDADE&gt;
+	&lt;UNIDADE&gt;%&lt;/UNIDADE&gt;
+	&lt;DATA&gt;
+		&lt;DIA&gt;1&lt;/DIA&gt;
+		&lt;MES&gt;6&lt;/MES&gt;
+		&lt;ANO&gt;2026&lt;/ANO&gt;
+	&lt;/DATA&gt;
+	&lt;VALOR&gt;55,76&lt;/VALOR&gt;
+&lt;/SERIE&gt;
+&lt;/resposta&gt;</getUltimoValorXMLReturn></getUltimoValorXMLResponse></soapenv:Body></soapenv:Envelope>
+

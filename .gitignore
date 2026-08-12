@@ -1,0 +1,25 @@
+﻿.venv/
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
+
+# --- brutos do IF.data (~790 MB): reproduziveis por src/coleta_ifdata.py ---
+# O manifesto (URL + hora + SHA-256) e os XML do catalogo SGS CONTINUAM versionados:
+# a rastreabilidade nao depende de guardar os blobs.
+data_raw/ifdata/
+data_raw/estban/
+data_raw/scr/
+data_raw/sgs/sgs_*.json
+
+# --- derivados pesados: regeraveis por src/constroi_base.py + src/indicadores.py ---
+data_processed/painel_ifdata_*.parquet
+data_processed/indicadores.parquet
+data_processed/estban_municipio.parquet
+data_processed/dicionario_campos_ifdata.csv
+data_processed/*_amostra.csv
+
+# nao ignorar (necessarios ao app / a verificacao):
+!data_raw/manifesto_coleta.csv
+!data_raw/sgs/catalogo/
+!data_processed/app_indicadores.parquet
+!data_processed/dicionario_campos_ifdata.parquet

@@ -1,0 +1,6 @@
+# Dependencias para REPRODUZIR o pipeline de dados (coleta, transformacao, indicadores).
+# Nao sao necessarias para rodar o painel -- ver requirements.txt.
+-r requirements.txt
+requests>=2.31      # coleta (SGS, IF.data, SCR, ESTBAN)
+statsmodels>=0.14   # filtro HP do credit gap (P1 nº 2)
+openpyxl>=3.1       # leitura de planilhas auxiliares

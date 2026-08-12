@@ -1,0 +1,8 @@
+# Dependencias de EXECUCAO do painel (o que o Streamlit Community Cloud instala).
+# Apenas o que app.py + src/scoring.py + src/tema.py + src/textos.py importam.
+# Para reproduzir a coleta e o calculo dos indicadores, use requirements-dev.txt.
+streamlit>=1.40
+pandas>=2.2
+numpy>=1.26
+plotly>=5.22
+pyarrow>=16
