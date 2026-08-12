@@ -39,10 +39,42 @@ Quatro regras:
 1. O texto fica entre três aspas: `"""` … `"""`
 2. Não mude o que está entre colchetes (`[p1_1]`) — é o endereço do bloco
 3. Acentos podem ser usados normalmente
-4. Aceita `**negrito**`, `*itálico*` e `<i>itálico</i>`
+4. Aceita `**negrito**`, `*itálico*` e `` `código` ``
 
 Se errar a sintaxe, o painel **não quebra**: mostra um aviso no topo com o número da linha
 e segue funcionando.
+
+### Aumentar o tamanho do texto
+
+Na seção `[aparencia]` do mesmo arquivo. Os valores são em pixels — aumente o número:
+
+```toml
+[aparencia]
+titulo_pagina = 30    # o título grande no topo
+subtitulo     = 15    # a pergunta decisória sob o título
+texto_base    = 13.5  # blocos de Leitura / Consequência
+cartao_valor  = 34    # o número grande dos cartões
+cartao_texto  = 12.5  # descrição dentro dos cartões
+cartao_rodape = 11    # componentes e faixas no pé do cartão
+rodape        = 11    # linhas de fonte e notas "como ler"
+tabela        = 13    # tabelas (agenda, comparador)
+```
+
+Se digitar algo que não seja número, o painel ignora e usa o padrão — não quebra.
+
+### Explicar os indicadores
+
+A seção `[glossario_indicadores]` alimenta ao mesmo tempo a tabela do expander
+"O que cada indicador mede" e as dicas que aparecem ao passar o mouse sobre os nomes nos
+cartões. O formato é `o que mede | por que está neste eixo | como ler`, separado por
+barras verticais:
+
+```toml
+p2_1_hhi_sistema = """
+Soma dos quadrados das participações de mercado, de 0 a 10.000. | Mede a concentração do
+sistema, não da instituição. | Abaixo de 1.500 = desconcentrado.
+"""
+```
 
 ## Mudar a aparência
 

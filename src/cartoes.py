@@ -9,10 +9,13 @@ que partes ele e feito. Um valor sozinho nao sustenta decisao de supervisao.
 """
 from __future__ import annotations
 
+import re
+
 import numpy as np
 import pandas as pd
 
 from tema import SEMAFORO, SEMAFORO_SOFT, TEMA, sparkline
+from textos import md_html
 
 # como formatar e como narrar cada indicador
 # chave -> (rotulo, unidade, fator, casas, sentido)
@@ -40,6 +43,38 @@ FORMATO = {
     "p3_6_folga_capital_pp":            ("Folga de capital", "p.p.", 1, 1, "menor_pior"),
 }
 
+def tabela_glossario(glossario: dict, eixos_indicadores: dict | None = None) -> str:
+    """Tabela 'o que cada indicador mede', para o expander da Visao geral.
+
+    Usa OS 18 indicadores do trabalho (6 por pergunta), e nao a decomposicao do score:
+    HHI do sistema e CR5 medem o mercado inteiro, nao a instituicao, por isso nao entram
+    no percentil de nenhum eixo -- mas continuam sendo dois dos 18 e precisam de verbete.
+    """
+    eixos_indicadores = eixos_indicadores or INDICADORES_DOS_18
+    if not glossario:
+        return "<div>glossário indisponível — verifique [glossario_indicadores] em textos.toml</div>"
+
+    titulo_eixo = {"crescimento": "P1 · Crescimento", "concentracao": "P2 · Concentração",
+                   "deterioracao": "P3 · Deterioração"}
+    linhas = ["<table class='gloss-ind'><tr><th>Indicador</th><th>O que mede</th>"
+              "<th>Por que está neste eixo</th><th>Como ler</th></tr>"]
+    for eixo, cols in eixos_indicadores.items():
+        linhas.append(f"<tr class='sep'><td colspan='4'>{titulo_eixo.get(eixo, eixo)}</td></tr>")
+        for c in cols:
+            rotulo = FORMATO.get(c, (c,))[0]
+            # aqui, ao contrario da dica, o Markdown VIRA HTML (a tabela renderiza)
+            bruto = md_html(str(glossario.get(c, "")))
+            partes = [" ".join(p.split()) for p in bruto.split("|")]
+            partes += [""] * (3 - len(partes))
+            cels = "".join(f"<td>{p}</td>" for p in partes[:3])
+            linhas.append(f"<tr><td class='nome'>{rotulo}</td>{cels}</tr>")
+    linhas.append("</table>")
+    return "".join(linhas)
+
+
+# Decomposicao do SCORE: so indicadores medidos POR INSTITUICAO entram no percentil.
+# HHI do sistema e CR5 descrevem o mercado inteiro e sao iguais para todas as
+# instituicoes no trimestre -- ranquea-las por eles nao teria sentido.
 INDICADORES_POR_EIXO = {
     "crescimento": ["p1_1_cresc_real_aa", "p1_2_credit_gap", "p1_3_trim_consec_acima",
                     "p1_4_cresc_carteira_sobre_capital", "p1_5_cresc_alto_risco_aa",
@@ -49,6 +84,14 @@ INDICADORES_POR_EIXO = {
     "deterioracao": ["p3_1_inadimplencia", "p3_2_cobertura", "p3_3_provisao_sobre_carteira",
                      "p3_4_inadimplencia_ajustada", "p3_5_ativos_problematicos",
                      "p3_6_folga_capital_pp"],
+}
+
+# OS 18 do trabalho (6 por pergunta) -- inclui os dois de sistema, para o glossario.
+INDICADORES_DOS_18 = {
+    "crescimento": INDICADORES_POR_EIXO["crescimento"],
+    "concentracao": ["p2_1_hhi_sistema", "p2_2_cr5_sistema_pct"]
+                    + INDICADORES_POR_EIXO["concentracao"],
+    "deterioracao": INDICADORES_POR_EIXO["deterioracao"],
 }
 
 
@@ -68,10 +111,11 @@ def _serie_mediana(df: pd.DataFrame, col: str) -> pd.Series:
 
 
 def cartao_indicador(df_hist: pd.DataFrame, df_atual: pd.DataFrame, col: str,
-                     nota: str = "") -> str:
+                     nota: str = "", glossario: dict | None = None) -> str:
     """HTML de um cartao de indicador (valor = mediana do universo no trimestre)."""
     rotulo, unidade, fator, casas, sentido = FORMATO.get(
         col, (col, "", 1, 2, "neutro"))
+    dica = _dica(glossario, col)
 
     serie = _serie_mediana(df_hist, col) * fator
     atual = df_atual[col].replace([np.inf, -np.inf], np.nan).dropna() if col in df_atual else pd.Series(dtype=float)
@@ -96,7 +140,8 @@ def cartao_indicador(df_hist: pd.DataFrame, df_atual: pd.DataFrame, col: str,
 
     return f"""
     <div class="cartao">
-      <div class="cartao-topo"><span class="cartao-rotulo">{rotulo}</span></div>
+      <div class="cartao-topo"><span class="cartao-rotulo termo"
+        {f'title="{dica}"' if dica else ''}>{rotulo}</span></div>
       <div class="cartao-valor">{num(valor, casas)}<span class="unidade"> {unidade}</span></div>
       <div class="cartao-releitura">mediana das {n} instituições do recorte</div>
       <div class="cartao-spark">{spark}</div>
@@ -109,8 +154,26 @@ def cartao_indicador(df_hist: pd.DataFrame, df_atual: pd.DataFrame, col: str,
     """
 
 
+def _dica(glossario: dict, chave: str) -> str:
+    """Texto do atributo title= (dica ao passar o mouse). O glossario guarda
+    'o que mede | por que esta neste eixo | como ler'; aqui vira tres linhas."""
+    bruto = (glossario or {}).get(chave, "")
+    if not bruto:
+        return ""
+    # o atributo title= nao renderiza HTML: o Markdown do glossario e removido, nao convertido
+    bruto = re.sub(r"\*{1,2}([^*]+?)\*{1,2}", r"\1", str(bruto))
+    partes = [" ".join(p.split()) for p in bruto.split("|")]
+    rotulos = ["O que mede: ", "Por que está aqui: ", "Como ler: "]
+    linhas = [r + p for r, p in zip(rotulos, partes) if p]
+    texto = "\n".join(linhas)
+    # escapa para caber dentro de um atributo HTML
+    return (texto.replace("&", "&amp;").replace('"', "&quot;")
+                 .replace("<", "&lt;").replace(">", "&gt;")
+                 .replace("\n", "&#10;"))
+
+
 def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
-                rotulo: str, descricao: str) -> str:
+                rotulo: str, descricao: str, glossario: dict | None = None) -> str:
     """Cartao de um EIXO (crescimento / concentracao / deterioracao), no padrao
     subindice -> componentes: score do eixo, sparkline e a decomposicao nos
     indicadores que o formam."""
@@ -138,17 +201,18 @@ def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
         rumo = "subindo" if d > 0.02 else ("cedendo" if d < -0.02 else "estável")
         delta_txt = f"{rumo} · {seta} {num(abs(d), 3)} em 12 meses"
 
-    # decomposicao: os indicadores do eixo, com a mediana de cada um
+    # decomposicao: os indicadores do eixo, com a mediana de cada um.
+    # Cada nome carrega a dica do glossario no title=, para decifrar a sigla sem sair da tela.
     partes = []
     for c in INDICADORES_POR_EIXO.get(eixo, []):
         if c not in df_atual.columns:
             continue
         r, u, f, ca, _s = FORMATO.get(c, (c, "", 1, 2, "neutro"))
         s = df_atual[c].replace([np.inf, -np.inf], np.nan).dropna()
-        if s.empty:
-            partes.append(f"{r} <b>—</b>")
-        else:
-            partes.append(f"{r} <b>{num(float(s.median()) * f, ca)}{u}</b>")
+        valor_txt = "—" if s.empty else f"{num(float(s.median()) * f, ca)}{u}"
+        dica = _dica(glossario, c)
+        nome = (f'<span class="termo" title="{dica}">{r}</span>' if dica else r)
+        partes.append(f"{nome} <b>{valor_txt}</b>")
 
     return f"""
     <div class="cartao">
@@ -156,10 +220,13 @@ def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
         <span class="cartao-rotulo">{rotulo}</span>
         <span class="selo" style="background:{soft};color:{cor}">{n_alto} em risco alto</span>
       </div>
-      <div class="cartao-valor" style="color:{cor}">{num(valor, 2)}</div>
+      <div class="cartao-valor" style="color:{cor}">{num(valor, 2)}<span
+        class="unidade" title="Score de posição relativa dentro do grupo de pares.&#10;0 = menor risco do grupo · 0,50 = mediana · 1 = maior risco.">
+        de 1,00</span></div>
+      <div class="cartao-escala">score de posição relativa · 0,50 = mediana dos pares</div>
       <div class="cartao-releitura">{descricao}</div>
       <div class="cartao-spark">{spark}</div>
       <div class="cartao-meta">{delta_txt} · {n_tot} instituições avaliadas</div>
-      <div class="cartao-comp">componentes (mediana do recorte):<br>{' · '.join(partes)}</div>
+      <div class="cartao-comp">componentes (mediana do recorte, em unidades reais):<br>{' · '.join(partes)}</div>
     </div>
     """

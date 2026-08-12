@@ -15,13 +15,28 @@
 #  Se errar a sintaxe, o painel avisa exatamente em que linha -- ele nao quebra.
 # ============================================================================
 
+# ---------------------------------------------------------------------------
+#  APARENCIA -- tamanhos de fonte, em pixels. Aumente o numero para deixar maior.
+#  Estes sao os unicos ajustes visuais que se faz por aqui; cores e espacamentos
+#  ficam em src/tema.py.
+# ---------------------------------------------------------------------------
+[aparencia]
+titulo_pagina   = 30    # o titulo grande no topo
+subtitulo       = 15    # a pergunta decisoria sob o titulo
+texto_base      = 13.5  # blocos de Leitura / Consequencia
+cartao_valor    = 34    # o numero grande dos cartoes
+cartao_texto    = 12.5  # descricao dentro dos cartoes
+cartao_rodape   = 11    # componentes e faixas no pe do cartao
+rodape          = 11    # linhas de fonte e notas "como ler"
+tabela          = 13    # tabelas (agenda, comparador)
+
 [cabecalho]
 titulo = "Painel decisório de crédito — Supervisão do Banco Central"
 subtitulo = """
 Quais instituições devem entrar na agenda de supervisão do próximo ciclo, dado o perfil de \
 crescimento, concentração e potencial de deterioração da carteira?
 """
-assinatura = "Trabalho Intermediário · FGV · Prof. Genaro Lins"
+assinatura = "Trabalho Intermediário · FGV · Prof. Genaro Lins · **Grupo**: Tomaz Leal, Roberto Gomides e Diana Cabral"
 
 [abas]
 p1 = "P1 — Quais instituições crescem acima do sistema e da própria tendência?"
@@ -62,6 +77,146 @@ descricao = "Onde o risco se concentra: modalidade, região, porte do tomador e 
 [eixos.deterioracao]
 rotulo = "Deterioração"
 descricao = "Qualidade da carteira frente ao ritmo de crescimento e à folga de capital."
+
+# ---------------------------------------------------------------------------
+#  Sintese e explicacao do score -- o texto sob os tres cartoes da Visao geral
+# ---------------------------------------------------------------------------
+[sintese]
+titulo = "Os três eixos, decompostos — nunca um número único opaco"
+
+o_que_e_o_numero = """
+O número grande de cada cartão é um **score de posição relativa**, entre 0 e 1. Não é
+percentual, não é reais, não é taxa: é **onde a instituição típica do recorte se situa
+dentro do seu grupo de pares**. Calcula-se assim: cada indicador do eixo vira um
+percentil dentro do grupo de mesmo TCB no trimestre (0 = menor risco do grupo,
+1 = maior); o score do eixo é a média desses percentis; o cartão mostra a **mediana**
+desse score entre as instituições do recorte.
+"""
+
+como_ler = """
+**0,50** é, por construção, a mediana do grupo — metade das instituições acima, metade
+abaixo. **0,75 ou mais** é o quartil superior de risco. Como é medida relativa, o score
+**nunca some**: se todo o sistema piorar junto, a mediana continua perto de 0,50. Por
+isso o cartão traz também os componentes em unidades reais (% a.a., ×, p.p.) — são eles
+que dizem se o nível absoluto é alto ou baixo.
+"""
+
+por_que_decompor = """
+O selo **"N em risco alto"** conta quantas instituições do recorte estão em 0,75 ou mais
+naquele eixo — é o número que vira agenda. A decomposição em componentes existe para que
+nenhuma decisão dependa de um número agregado: dois eixos podem marcar 0,51 por motivos
+completamente diferentes, e é a lista de componentes que revela qual.
+"""
+
+# ---------------------------------------------------------------------------
+#  Glossario dos indicadores -- aparece como dica ao passar o mouse sobre cada
+#  componente e na tabela do expander "O que cada indicador mede".
+#  Formato: chave_do_indicador = "o que mede | por que está neste eixo | como ler"
+# ---------------------------------------------------------------------------
+[glossario_indicadores]
+p1_1_cresc_real_aa = """
+Variação da carteira de crédito em 12 meses, já descontada a inflação (IPCA). | É a
+variável-mestra do curso: se fosse possível olhar um único número de risco de crédito,
+seria este. | Acima de 15% a.a. real é o limiar de crescimento acelerado adotado aqui.
+"""
+p1_2_credit_gap = """
+Quanto a carteira se afasta da própria tendência de longo prazo, estimada pelo filtro
+Hodrick-Prescott (HP) — o mesmo instrumento que Basileia usa para medir excesso de
+crédito. | Distingue crescimento que é recuperação de crescimento que é boom. | Positivo
+= acima da própria tendência. Exige 12 trimestres de série no mesmo universo.
+"""
+p1_3_trim_consec_acima = """
+Quantos trimestres seguidos a instituição cresce acima de 15% a.a. real. | O FMI mostra
+que o problema não é crescer, é crescer **por muito tempo**. | 8 trimestres ou mais
+(dois anos) caracteriza boom na definição adotada.
+"""
+p1_4_cresc_carteira_sobre_capital = """
+Crescimento da carteira dividido pelo crescimento do Patrimônio de Referência. | Mede se
+a expansão está sendo acompanhada de capital que a sustente. | 1,0 = carteira e capital
+crescendo no mesmo ritmo. Acima disso, a instituição cresce consumindo folga prudencial.
+"""
+p1_5_cresc_alto_risco_aa = """
+Crescimento real anual da carteira em cartão de crédito e empréstimo sem consignação. |
+Onde o crescimento se concentra importa mais que o total: são as modalidades sem garantia
+e de maior spread. | Compare com o crescimento total: muito acima dele indica mudança de
+perfil, não só expansão.
+"""
+p1_6_var_share_pp = """
+Quantos pontos percentuais de participação na carteira do universo a instituição ganhou
+em 12 meses. | Ganho de mercado muito rápido é sinal clássico de afrouxamento de critério
+de concessão. | Em p.p.; valores pequenos são normais — o que importa é a posição
+relativa aos pares.
+"""
+
+p2_1_hhi_sistema = """
+**HHI (índice Herfindahl-Hirschman)**: soma dos quadrados das participações de mercado de
+todas as instituições, em escala de 0 a 10.000. Quanto maior, mais concentrado. | Mede a
+concentração do **sistema**, não da instituição — é o pano de fundo da decisão. | Abaixo
+de 1.500 = desconcentrado; 1.500 a 2.500 = moderadamente concentrado; acima = concentrado.
+"""
+p2_2_cr5_sistema_pct = """
+**CR5 (concentration ratio dos 5 maiores)**: fatia da carteira do universo detida pelas
+cinco maiores instituições. | Complementa o HHI: o HHI pode ser baixo por haver milhares
+de cooperativas pequenas, enquanto o topo segue muito concentrado. | Em % da carteira
+total. É indicador de sistema, igual para todas as instituições no trimestre.
+"""
+p2_3_pct_alto_risco = """
+Fatia da carteira de pessoa física em cartão de crédito e empréstimo sem consignação. |
+São as modalidades sem garantia real: pouco volume, muita margem e muita perda potencial.
+| Em % da carteira PF. Instituições que não operam PF ficam sem valor, não com zero.
+"""
+p2_4_hhi_regional = """
+HHI aplicado à distribuição da carteira entre as cinco regiões do país. | Concentração
+geográfica transforma um choque local em choque da instituição inteira. | Escala 0 a
+10.000. Perto de 10.000 = atuação praticamente em uma única região, o que é esperado em
+cooperativas singulares e só faz sentido comparado aos pares do mesmo tipo.
+"""
+p2_5_pct_grande_porte = """
+Fatia da carteira de pessoa jurídica em tomadores classificados como de grande porte. |
+É onde vive o risco de nome único — poucos devedores respondendo por muito saldo. | Em %
+da carteira PJ. **Não é** um Herfindahl sobre devedores: um banco com muitos clientes
+grandes aparece igual a um com poucos. Instituições sem carteira PJ ficam sem valor.
+"""
+p2_6_loan_to_deposit = """
+Carteira de crédito dividida pelas captações (**loan-to-deposit**). | Funding curto frente
+a crédito longo é um dos cinco sinais de boom ruim apontados pelo FMI. | 1,0 = carteira
+igual às captações. Acima disso, parte do crédito é financiada por fontes que não os
+depósitos, o que costuma ser mais volátil.
+"""
+
+p3_1_inadimplencia = """
+Carteira em atraso acima de 90 dias, sobre a carteira total. | É o termômetro direto de
+qualidade — mas o que chega com atraso, por isso nunca se lê sozinho. | Em %. Disponível
+a partir de 2025Q1, sob o regime de perda esperada da Res. 4.966.
+"""
+p3_2_cobertura = """
+Provisão constituída dividida pela carteira em atraso (**índice de cobertura**). | Mede
+se a perda já foi reconhecida no balanço ou ainda está por vir. | Em %. **100% cobre
+integralmente o atraso**; abaixo disso há perda ainda não provisionada.
+"""
+p3_3_provisao_sobre_carteira = """
+Provisão total sobre a carteira total. | Provisão baixa em quem cresce rápido é sinal de
+alerta: a carteira nova ainda não maturou e o risco pode estar subestimado. | Em %.
+Compare sempre com os pares — o nível adequado depende do perfil da carteira.
+"""
+p3_4_inadimplencia_ajustada = """
+Atraso de hoje dividido pela carteira de **quatro trimestres atrás** — a base que de fato
+originou esse atraso. | É a correção central do trabalho, contra o **efeito denominador**:
+carteira que cresce rápido dilui o índice de inadimplência e esconde perda futura. | Em %.
+Quanto mais acima da inadimplência corrente, mais o crescimento está mascarando o risco.
+"""
+p3_5_ativos_problematicos = """
+Carteira de ativos problemáticos sobre a carteira total, no conceito da Res. 4.557 —
+inclui reestruturados e operações com indício de não recebimento integral. | É mais amplo
+que a inadimplência de 90 dias: renegociar pode adiar o default sem eliminar o risco. |
+Em %. Costuma ficar bem acima da inadimplência; o que importa é a distância entre as duas.
+"""
+p3_6_folga_capital_pp = """
+Distância entre o Índice de Basileia da instituição e o mínimo de referência. | Define a
+**urgência**: a mesma deterioração exige ação mais rápida em quem tem menos capital para
+absorvê-la. | Em pontos percentuais sobre 10,5% (8% de requisito mais 2,5% de conservação).
+Adicionais contracíclicos podem elevar esse piso.
+"""
 
 # ---------------------------------------------------------------------------
 #  Visualizacoes -- Leitura / Referencia / Consequencia

@@ -20,6 +20,7 @@ app mostra o aviso na tela em vez de quebrar.
 """
 from __future__ import annotations
 
+import re
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -38,6 +39,24 @@ def _limpa(v):
     return " ".join(v.split()) if isinstance(v, str) else v
 
 
+def md_html(s: str) -> str:
+    """Converte a formatacao inline do Markdown para HTML.
+
+    Necessario porque varios textos sao injetados dentro de <div> proprias (cabecalho,
+    cartoes, blocos de leitura). Nesses lugares o Streamlit NAO interpreta Markdown --
+    o `**negrito**` apareceria literal na tela. Aqui a conversao e feita a mao, para o
+    subconjunto que o textos.toml promete suportar.
+
+    Ordem importa: ** antes de *, senao o negrito seria consumido como italico.
+    """
+    if not isinstance(s, str):
+        return s
+    s = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", s)          # **negrito**
+    s = re.sub(r"(?<![\*\w])\*([^*]+?)\*(?!\*)", r"<i>\1</i>", s)   # *italico*
+    s = re.sub(r"`([^`]+?)`", r"<code>\1</code>", s)       # `codigo`
+    return s
+
+
 @dataclass
 class Textos:
     dados: dict = field(default_factory=dict)
@@ -46,13 +65,33 @@ class Textos:
     avisos: list = field(default_factory=list)
 
     def txt(self, caminho: str, padrao: str = "") -> str:
-        """Le um texto por caminho pontilhado, ex.: txt('cabecalho.titulo')."""
+        """Le um texto por caminho pontilhado, ex.: txt('cabecalho.titulo').
+
+        Ja devolve o Markdown inline convertido para HTML, porque quase todo texto do
+        painel e injetado dentro de <div> proprias. Para o texto cru, use `bruto`.
+        """
+        return md_html(self.bruto(caminho, padrao))
+
+    def bruto(self, caminho: str, padrao: str = "") -> str:
+        """Igual a txt(), mas sem converter Markdown -- para st.markdown()."""
         no = self.dados
         for parte in caminho.split("."):
             if not isinstance(no, dict) or parte not in no:
                 return padrao or f"({caminho} não definido em textos.toml)"
             no = no[parte]
         return _limpa(no) if isinstance(no, str) else no
+
+    def lrc(self, chave: str, campo: str) -> str:
+        """Texto de um bloco de visualizacao, com Markdown ja convertido."""
+        return md_html(self.LRC.get(chave, {}).get(campo, ""))
+
+    @property
+    def aparencia(self) -> dict:
+        return self.dados.get("aparencia", {})
+
+    @property
+    def glossario_indicadores(self) -> dict:
+        return self.dados.get("glossario_indicadores", {})
 
     @property
     def NAO_PERMITE_CONCLUIR(self) -> str:

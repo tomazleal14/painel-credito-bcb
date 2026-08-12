@@ -142,7 +142,38 @@ def sparkline(valores, largura: int = 168, altura: int = 34,
 
 
 # ---------------------------------------------------------------- CSS
-CSS = f"""
+# Tamanhos padrao, em pixels. Podem ser sobrescritos pela secao [aparencia] do
+# textos.toml, para que se ajuste o corpo do texto sem mexer em codigo.
+TAMANHOS = {
+    "titulo_pagina": 30,
+    "subtitulo": 15,
+    "texto_base": 13.5,
+    "cartao_valor": 34,
+    "cartao_texto": 12.5,
+    "cartao_rodape": 11,
+    "rodape": 11,
+    "tabela": 13,
+}
+
+
+def monta_css(aparencia: dict | None = None) -> str:
+    """CSS do painel. `aparencia` vem da secao [aparencia] do textos.toml.
+
+    O molde fica DENTRO da funcao de proposito: uma f-string ja consome as chaves de
+    CSS, e combina-la com .format() depois quebraria em todo `{{ }}` do estilo.
+    """
+    t = dict(TAMANHOS)
+    for k, v in (aparencia or {}).items():
+        if k in t:
+            try:
+                t[k] = float(v)
+            except (TypeError, ValueError):
+                pass  # valor invalido no TOML: mantem o padrao em vez de quebrar
+    return _css(t)
+
+
+def _css(t: dict) -> str:
+    return f"""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@350;420;500;570;650&display=swap');
 
@@ -161,9 +192,9 @@ CSS = f"""
   /* ---------- cabecalho ---------- */
   .cabecalho {{ border-bottom: 2px solid {TEMA['acento']}; padding-bottom: 12px;
                 margin-bottom: 4px; }}
-  .cabecalho h1 {{ font-size: 30px; line-height: 1.12; letter-spacing: -0.018em;
+  .cabecalho h1 {{ font-size: {t["titulo_pagina"]}px; line-height: 1.12; letter-spacing: -0.018em;
                    font-weight: 650; margin: 0 0 6px 0; color: {TEMA['texto']}; }}
-  .cabecalho .sub {{ font-size: 15px; line-height: 1.55; color: {TEMA['texto_2']};
+  .cabecalho .sub {{ font-size: {t["subtitulo"]}px; line-height: 1.55; color: {TEMA['texto_2']};
                      max-width: 78ch; }}
   .cabecalho .assinatura {{ font-size: 12px; color: {TEMA['texto_3']}; margin-top: 8px;
                             letter-spacing: 0.03em; }}
@@ -171,7 +202,7 @@ CSS = f"""
   /* ---------- bloco Leitura / Consequencia ---------- */
   .bloco-lrc {{ border-left: 3px solid {TEMA['acento']}; background: {TEMA['surface']};
                 padding: 11px 15px; margin: 8px 0 16px 0; border-radius: 0 3px 3px 0;
-                font-size: 13.5px; line-height: 1.6; color: {TEMA['texto_2']};
+                font-size: {t["texto_base"]}px; line-height: 1.6; color: {TEMA['texto_2']};
                 border-top: 1px solid {TEMA['borda']};
                 border-right: 1px solid {TEMA['borda']};
                 border-bottom: 1px solid {TEMA['borda']}; }}
@@ -181,7 +212,7 @@ CSS = f"""
             padding: 10px 14px; margin: 10px 0; font-size: 12.5px; line-height: 1.55;
             border-radius: 0 3px 3px 0; color: {TEMA['texto_2']}; }}
 
-  .rodape-fonte {{ font-size: 11px; color: {TEMA['texto_3']}; margin-top: 2px;
+  .rodape-fonte {{ font-size: {t["rodape"]}px; color: {TEMA['texto_3']}; margin-top: 2px;
                    line-height: 1.5; }}
 
   /* ---------- cartao de indicador ---------- */
@@ -193,20 +224,40 @@ CSS = f"""
   .cartao-rotulo {{ font-size: 10.5px; text-transform: uppercase;
                     letter-spacing: 0.06em; color: {TEMA['texto_3']};
                     font-weight: 570; }}
-  .cartao-valor {{ font-size: 34px; line-height: 1.12; letter-spacing: -0.018em;
+  .cartao-valor {{ font-size: {t["cartao_valor"]}px; line-height: 1.12; letter-spacing: -0.018em;
                    font-weight: 650; color: {TEMA['texto']}; margin: 4px 0 0 0;
                    font-variant-numeric: tabular-nums; }}
   .cartao-valor .unidade {{ font-size: 16px; font-weight: 500;
                             color: {TEMA['texto_3']}; letter-spacing: 0; }}
-  .cartao-releitura {{ font-size: 12.5px; line-height: 1.5; color: {TEMA['texto_2']};
+  .cartao-releitura {{ font-size: {t["cartao_texto"]}px; line-height: 1.5; color: {TEMA['texto_2']};
                        margin: 5px 0 9px 0; }}
-  .cartao-meta {{ font-size: 11px; color: {TEMA['texto_3']}; margin-top: 7px;
+  .cartao-meta {{ font-size: {t["cartao_rodape"]}px; color: {TEMA['texto_3']}; margin-top: 7px;
                   line-height: 1.5; }}
   .cartao-spark {{ margin: 4px 0 2px 0; }}
-  .cartao-comp {{ font-size: 11px; color: {TEMA['texto_3']}; line-height: 1.65;
+  .cartao-comp {{ font-size: {t["cartao_rodape"]}px; color: {TEMA['texto_3']}; line-height: 1.65;
                   border-top: 1px solid {TEMA['borda']}; padding-top: 8px;
                   margin-top: 9px; }}
   .cartao-comp b {{ color: {TEMA['texto_2']}; font-weight: 500; }}
+  .cartao-escala {{ font-size: 10.5px; color: {TEMA['texto_3']}; margin: -2px 0 6px 0;
+                    letter-spacing: 0.01em; }}
+
+  /* termo com dica: sublinhado pontilhado indica que ha explicacao ao passar o mouse */
+  .termo {{ border-bottom: 1px dotted {TEMA['borda_forte']}; cursor: help; }}
+  .termo:hover {{ border-bottom-color: {TEMA['acento']}; color: {TEMA['acento_ink']}; }}
+
+  /* tabela do glossario de indicadores */
+  .gloss-ind {{ font-size: {t["cartao_rodape"]}px; line-height: 1.6; width: 100%;
+                border-collapse: collapse; }}
+  .gloss-ind th {{ text-align: left; font-size: 10.5px; text-transform: uppercase;
+                   letter-spacing: 0.06em; color: {TEMA['texto_3']}; font-weight: 570;
+                   border-bottom: 1px solid {TEMA['borda_forte']}; padding: 5px 8px; }}
+  .gloss-ind td {{ padding: 6px 8px; border-bottom: 1px solid {TEMA['borda']};
+                   vertical-align: top; }}
+  .gloss-ind td.nome {{ font-weight: 570; color: {TEMA['acento_ink']};
+                        white-space: nowrap; }}
+  .gloss-ind tr.sep td {{ background: {TEMA['surface_2']}; font-weight: 570;
+                          color: {TEMA['texto_2']}; text-transform: uppercase;
+                          font-size: 10.5px; letter-spacing: 0.06em; }}
 
   .selo {{ display: inline-block; font-size: 10px; letter-spacing: 0.05em;
            text-transform: uppercase; font-weight: 570; padding: 2px 7px;

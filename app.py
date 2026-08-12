@@ -24,8 +24,8 @@ import cartoes
 import filtros
 import textos as _textos
 from scoring import EIXOS, PESOS_PADRAO, agenda, calcula_scores
-from tema import (ALTURA_GRAFICO, ALTURA_GRAFICO_GRANDE, CSS, ICONE_SEMAFORO,
-                  SEMAFORO, TEMA, layout_base)
+from tema import (ALTURA_GRAFICO, ALTURA_GRAFICO_GRANDE, ICONE_SEMAFORO,
+                  SEMAFORO, TEMA, layout_base, monta_css)
 
 DATA_PROC = RAIZ / "data_processed"
 MIN_BASILEIA = 10.5
@@ -34,7 +34,6 @@ LIMIAR_BOOM = 0.15
 st.set_page_config(page_title="Painel de Supervisão de Crédito — BCB",
                    page_icon="◧", layout="wide",
                    initial_sidebar_state="expanded")
-st.markdown(CSS, unsafe_allow_html=True)
 
 
 # ------------------------------------------------------------------ dados
@@ -68,20 +67,27 @@ T = carrega_textos(_textos.assinatura_arquivo())
 LRC = T.LRC
 NAO_PERMITE_CONCLUIR = T.NAO_PERMITE_CONCLUIR
 
+# o CSS depende dos tamanhos de fonte definidos em [aparencia] no textos.toml
+st.markdown(monta_css(T.aparencia), unsafe_allow_html=True)
+
 
 def fmt_trimestre(dt: int) -> str:
     return f"{str(dt)[4:6]}/{str(dt)[:4]}"
 
 
 def bloco_lrc(chave: str) -> None:
-    """Leitura + Consequencia na tela; Referencia em expander (escolha do autor)."""
-    t = LRC[chave]
+    """Leitura + Consequencia na tela; Referencia em expander (escolha do autor).
+
+    Leitura e Consequencia vao dentro de uma <div> propria, entao o Markdown do
+    textos.toml precisa ser convertido a mao (T.lrc). A Referencia usa st.markdown,
+    que ja interpreta Markdown sozinho.
+    """
     st.markdown(
-        f"<div class='bloco-lrc'><b>Leitura.</b> {t['leitura']}<br>"
-        f"<b>Consequência.</b> {t['consequencia']}</div>",
+        f"<div class='bloco-lrc'><b>Leitura.</b> {T.lrc(chave, 'leitura')}<br>"
+        f"<b>Consequência.</b> {T.lrc(chave, 'consequencia')}</div>",
         unsafe_allow_html=True)
     with st.expander("Referência — contra o que isto é comparado"):
-        st.markdown(t["referencia"])
+        st.markdown(LRC[chave]["referencia"])
 
 
 def sem_html(nivel: str) -> str:
@@ -152,21 +158,37 @@ aba0, aba1, aba2, aba3, aba4 = st.tabs([
 with aba0:
     lista = agenda(scored, dt_sel, minimo_carteira=porte_min, n=25)
 
+    # o `help` de cada métrica decifra a sigla sem exigir que se saia da tela
     c = st.columns(5)
-    c[0].metric("Instituições no recorte", f"{len(univ):,}".replace(",", "."))
+    c[0].metric("Instituições no recorte", cartoes.num(len(univ), 0),
+                help="Quantas instituições passam pelos filtros da barra lateral, "
+                     "incluindo o corte de carteira mínima.")
     c[1].metric("Carteira do recorte",
-                f"R$ {univ['carteira_credito_real'].sum()/1e12:,.2f} tri".replace(".", ","))
+                f"R$ {cartoes.num(univ['carteira_credito_real'].sum()/1e12, 2)} tri",
+                help=f"Soma da carteira de crédito das instituições do recorte, em reais "
+                     f"de {fmt_trimestre(BASE_DEFL)} (deflacionada pelo IPCA).")
     hhi = univ["p2_1_hhi_sistema"].dropna()
-    c[2].metric("HHI do sistema", f"{hhi.iloc[0]:,.0f}".replace(",", ".") if len(hhi) else "—")
+    c[2].metric("HHI do sistema",
+                cartoes.num(hhi.iloc[0], 0) if len(hhi) else "—",
+                help="Índice Herfindahl-Hirschman: soma dos quadrados das participações "
+                     "de mercado, de 0 a 10.000. Abaixo de 1.500 = desconcentrado; "
+                     "1.500 a 2.500 = moderadamente concentrado; acima = concentrado.")
     cr5 = univ["p2_2_cr5_sistema_pct"].dropna()
-    c[3].metric("CR5", f"{cr5.iloc[0]:,.1f}%".replace(".", ",") if len(cr5) else "—")
+    c[3].metric("CR5",
+                f"{cartoes.num(cr5.iloc[0], 1)}%" if len(cr5) else "—",
+                help="Concentration ratio dos 5 maiores: fatia da carteira detida pelas "
+                     "cinco maiores instituições. Complementa o HHI, que pode ser baixo "
+                     "por haver milhares de cooperativas pequenas.")
     cresc_med = univ["p1_1_cresc_real_aa"].median()
     c[4].metric("Crescimento real mediano",
-                f"{cresc_med*100:,.1f}%".replace(".", ",") if pd.notna(cresc_med) else "—")
+                f"{cartoes.num(cresc_med*100, 1)}%" if pd.notna(cresc_med) else "—",
+                help="Mediana do crescimento da carteira em 12 meses, já descontada a "
+                     "inflação (IPCA). É a variável-mestra de P1.")
 
     # ---- cartoes por eixo: score, sparkline e decomposicao nos indicadores ----
-    st.markdown("#### Os três eixos, decompostos — nunca um número único opaco")
+    st.markdown(f"#### {T.bruto('sintese.titulo', 'Os três eixos, decompostos')}")
     hist = scored[scored["carteira_credito_real"] >= porte_min]
+    gloss_ind = T.glossario_indicadores
     cols_eixo = st.columns(3, gap="medium")
     for i, eixo in enumerate(EIXOS):
         with cols_eixo[i]:
@@ -174,15 +196,46 @@ with aba0:
                 cartoes.cartao_eixo(
                     hist, univ, eixo,
                     T.txt(f"eixos.{eixo}.rotulo", eixo.capitalize()),
-                    T.txt(f"eixos.{eixo}.descricao", "")),
+                    T.txt(f"eixos.{eixo}.descricao", ""),
+                    glossario=gloss_ind),
                 unsafe_allow_html=True)
+
+    # ---- o que o numero grande significa, e a sintese dos achados ----
     st.markdown(
-        f"<div class='rodape-fonte' style='margin-top:8px'>"
-        f"como ler: o score de cada eixo é a média dos percentis dos seus indicadores "
-        f"<b>dentro do grupo de pares</b> (mesmo TCB). 0,50 é a mediana do grupo; "
-        f"0,75 ou mais é o quartil superior de risco. A linha tracejada da minissérie "
-        f"marca 0,50.</div>",
+        f"<div class='bloco-lrc'><b>O que é o número.</b> {T.txt('sintese.o_que_e_o_numero')}"
+        f"<br><br><b>Como ler.</b> {T.txt('sintese.como_ler')}"
+        f"<br><br><b>Por que decompor.</b> {T.txt('sintese.por_que_decompor')}</div>",
         unsafe_allow_html=True)
+
+    # sintese factual do trimestre, calculada -- nao escrita a mao
+    n_alto = {e: int((univ[f"sem_{e}"] == "alto").sum()) for e in EIXOS}
+    pior = max(n_alto, key=n_alto.get)
+    rot = {e: T.bruto(f"eixos.{e}.rotulo", e).lower() for e in EIXOS}
+    quadrante = univ[(univ["p1_1_cresc_real_aa"] > univ["p1_1_cresc_real_aa"].median())
+                     & (univ["p3_1_inadimplencia"] < univ["p3_1_inadimplencia"].median())]
+    st.markdown(
+        f"<div class='aviso'><b>Neste recorte ({fmt_trimestre(dt_sel)}):</b> "
+        f"{n_alto['crescimento']} instituições em risco alto de crescimento, "
+        f"{n_alto['concentracao']} de concentração e {n_alto['deterioracao']} de deterioração — "
+        f"a maior pressão vem de <b>{rot[pior]}</b>. "
+        f"<b>{len(quadrante)}</b> estão no quadrante-assinatura de P3 "
+        f"(crescem acima da mediana e ainda exibem inadimplência abaixo dela), "
+        f"que é onde o efeito denominador costuma esconder perda futura.</div>",
+        unsafe_allow_html=True)
+
+    with st.expander("O que cada indicador mede — glossário dos 18"):
+        st.markdown(cartoes.tabela_glossario(gloss_ind), unsafe_allow_html=True)
+        st.markdown(
+            f"<div class='rodape-fonte' style='margin-top:10px'>"
+            f"<b>HHI do sistema</b> e <b>CR5</b> descrevem o mercado inteiro e são iguais "
+            f"para todas as instituições no trimestre — por isso são dois dos 18 "
+            f"indicadores, mas não entram no score de nenhuma instituição: ranqueá-las "
+            f"por um número idêntico para todas não teria sentido. Eles definem o "
+            f"contexto em que o resto é lido.<br><br>"
+            f"Os textos deste glossário ficam em <code>textos.toml</code>, seção "
+            f"<code>[glossario_indicadores]</code>. Cada indicador também aparece como "
+            f"dica ao passar o mouse sobre o nome, nos cartões.</div>",
+            unsafe_allow_html=True)
 
     st.markdown(f"#### {T.txt('agenda.titulo')} — {fmt_trimestre(dt_sel)}")
     st.markdown(
@@ -304,7 +357,8 @@ def faixa_cartoes(pergunta: str) -> None:
         alvo = (linha1 if i < 3 else linha2)[i % 3]
         with alvo:
             st.markdown(
-                cartoes.cartao_indicador(hist, univ, c, NOTAS_CARTAO.get(c, "")),
+                cartoes.cartao_indicador(hist, univ, c, NOTAS_CARTAO.get(c, ""),
+                                         glossario=T.glossario_indicadores),
                 unsafe_allow_html=True)
     st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
