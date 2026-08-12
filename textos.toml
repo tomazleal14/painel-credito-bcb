@@ -22,8 +22,8 @@
 # ---------------------------------------------------------------------------
 [aparencia]
 titulo_pagina   = 30    # o titulo grande no topo
-subtitulo       = 15    # a pergunta decisoria sob o titulo
-assinatura      = 12    # a linha de autoria, sob o subtitulo
+subtitulo       = 16    # a pergunta decisoria sob o titulo
+assinatura      = 14    # a linha de autoria, sob o subtitulo
 texto_base      = 13.5  # blocos de Leitura / Consequencia
 cartao_valor    = 34    # o numero grande dos cartoes
 cartao_texto    = 12.5  # descricao dentro dos cartoes
