@@ -20,10 +20,11 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+import cartoes
+import textos as _textos
 from scoring import EIXOS, PESOS_PADRAO, agenda, calcula_scores
 from tema import (ALTURA_GRAFICO, ALTURA_GRAFICO_GRANDE, CSS, ICONE_SEMAFORO,
                   SEMAFORO, TEMA, layout_base)
-from textos import LRC, NAO_PERMITE_CONCLUIR
 
 DATA_PROC = RAIZ / "data_processed"
 MIN_BASILEIA = 10.5
@@ -53,6 +54,18 @@ def carrega():
 
 ind, sgs, scr, cat_sgs, defl = carrega()
 BASE_DEFL = int(defl["base_do_indice"].iloc[0])
+
+
+# Textos: cache com chave no mtime de textos.toml. Salvar o arquivo muda o mtime,
+# invalida este cache e o texto novo aparece ao recarregar a pagina -- sem reiniciar.
+@st.cache_data(show_spinner=False)
+def carrega_textos(assinatura: float):
+    return _textos.carrega(assinatura)
+
+
+T = carrega_textos(_textos.assinatura_arquivo())
+LRC = T.LRC
+NAO_PERMITE_CONCLUIR = T.NAO_PERMITE_CONCLUIR
 
 
 def fmt_trimestre(dt: int) -> str:
@@ -126,11 +139,17 @@ univ = scored[(scored["data_base"] == dt_sel)
 
 
 # ------------------------------------------------------------------ cabecalho
+# Se textos.toml tiver erro de sintaxe, avisa em vez de quebrar o painel.
+if T.erro:
+    st.error(f"**Problema em `textos.toml`** — o painel segue com os textos padrão.\n\n"
+             f"```\n{T.erro}\n```")
+elif T.avisos:
+    st.warning("Avisos de `textos.toml`: " + " · ".join(T.avisos))
+
 st.markdown(
-    "<div class='cabecalho'><h1>Painel decisório de crédito — Supervisão do Banco Central</h1>"
-    "<div class='sub'>Quais instituições devem entrar na agenda de supervisão do próximo ciclo, "
-    "dado o perfil de crescimento, concentração e potencial de deterioração da carteira?<br>"
-    "Trabalho Intermediário · FGV · Prof. Genaro Lins</div></div>",
+    f"<div class='cabecalho'><h1>{T.txt('cabecalho.titulo')}</h1>"
+    f"<div class='sub'>{T.txt('cabecalho.subtitulo')}</div>"
+    f"<div class='assinatura'>{T.txt('cabecalho.assinatura')}</div></div>",
     unsafe_allow_html=True)
 
 aba0, aba1, aba2, aba3, aba4 = st.tabs([
@@ -154,15 +173,30 @@ with aba0:
     c[4].metric("Crescimento real mediano",
                 f"{cresc_med*100:,.1f}%".replace(".", ",") if pd.notna(cresc_med) else "—")
 
-    st.markdown(f"#### Agenda de supervisão — {fmt_trimestre(dt_sel)}")
+    # ---- cartoes por eixo: score, sparkline e decomposicao nos indicadores ----
+    st.markdown("#### Os três eixos, decompostos — nunca um número único opaco")
+    hist = scored[scored["carteira_credito_real"] >= porte_min]
+    cols_eixo = st.columns(3, gap="medium")
+    for i, eixo in enumerate(EIXOS):
+        with cols_eixo[i]:
+            st.markdown(
+                cartoes.cartao_eixo(
+                    hist, univ, eixo,
+                    T.txt(f"eixos.{eixo}.rotulo", eixo.capitalize()),
+                    T.txt(f"eixos.{eixo}.descricao", "")),
+                unsafe_allow_html=True)
     st.markdown(
-        "<div class='bloco-lrc'><b>Leitura.</b> Lista priorizada pelo score composto. "
-        "Cada instituição traz três luzes: crescimento, concentração e deterioração. "
-        "A luz é a posição da instituição <i>dentro do seu grupo de pares</i> (mesmo TCB), "
-        "não um valor absoluto.<br>"
-        "<b>Consequência.</b> É esta a lista que entra na agenda do próximo ciclo. "
-        "A ordem muda se você alterar os pesos na barra lateral — e mudar o critério "
-        "é parte da decisão do supervisor.</div>",
+        f"<div class='rodape-fonte' style='margin-top:8px'>"
+        f"como ler: o score de cada eixo é a média dos percentis dos seus indicadores "
+        f"<b>dentro do grupo de pares</b> (mesmo TCB). 0,50 é a mediana do grupo; "
+        f"0,75 ou mais é o quartil superior de risco. A linha tracejada da minissérie "
+        f"marca 0,50.</div>",
+        unsafe_allow_html=True)
+
+    st.markdown(f"#### {T.txt('agenda.titulo')} — {fmt_trimestre(dt_sel)}")
+    st.markdown(
+        f"<div class='bloco-lrc'><b>Leitura.</b> {T.txt('agenda.leitura')}<br>"
+        f"<b>Consequência.</b> {T.txt('agenda.consequencia')}</div>",
         unsafe_allow_html=True)
 
     if lista.empty:
@@ -249,6 +283,41 @@ def _tamanho(d: pd.DataFrame, maximo: int = 46) -> pd.Series:
     return pd.Series(12, index=d.index)
 
 
+INDICADORES_DA_ABA = {
+    "p1": ["p1_1_cresc_real_aa", "p1_2_credit_gap", "p1_3_trim_consec_acima",
+           "p1_4_cresc_carteira_sobre_capital", "p1_5_cresc_alto_risco_aa",
+           "p1_6_var_share_pp"],
+    "p2": ["p2_1_hhi_sistema", "p2_2_cr5_sistema_pct", "p2_3_pct_alto_risco",
+           "p2_4_hhi_regional", "p2_5_pct_grande_porte", "p2_6_loan_to_deposit"],
+    "p3": ["p3_1_inadimplencia", "p3_2_cobertura", "p3_3_provisao_sobre_carteira",
+           "p3_4_inadimplencia_ajustada", "p3_5_ativos_problematicos",
+           "p3_6_folga_capital_pp"],
+}
+NOTAS_CARTAO = {
+    "p2_5_pct_grande_porte": "só carteira PJ; sem PJ o campo fica vazio",
+    "p3_1_inadimplencia": "regime ECL, a partir de 2025Q1",
+    "p3_2_cobertura": "≥ 100% cobre todo o atraso",
+    "p3_6_folga_capital_pp": "sobre o mínimo de 10,5%",
+    "p1_2_credit_gap": "exige 12 trimestres no mesmo universo",
+}
+
+
+def faixa_cartoes(pergunta: str) -> None:
+    """Os 6 indicadores da pergunta como cartoes: valor, minisserie e faixa do universo."""
+    cols = INDICADORES_DA_ABA[pergunta]
+    hist = scored[scored["carteira_credito_real"] >= porte_min]
+    linha1, linha2 = st.columns(3, gap="medium"), None
+    for i, c in enumerate(cols):
+        if i == 3:
+            linha2 = st.columns(3, gap="medium")
+        alvo = (linha1 if i < 3 else linha2)[i % 3]
+        with alvo:
+            st.markdown(
+                cartoes.cartao_indicador(hist, univ, c, NOTAS_CARTAO.get(c, "")),
+                unsafe_allow_html=True)
+    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+
+
 @st.cache_data(show_spinner=False)
 def cresc_por_modalidade(_df: pd.DataFrame, dt: int) -> pd.DataFrame:
     """Crescimento real anual por modalidade PF, por instituição."""
@@ -265,7 +334,8 @@ def cresc_por_modalidade(_df: pd.DataFrame, dt: int) -> pd.DataFrame:
 
 # ================================================================== P1
 with aba1:
-    st.markdown("#### P1 — Quais instituições crescem acima do sistema e da própria tendência?")
+    st.markdown(f"#### {T.txt('abas.p1')}")
+    faixa_cartoes("p1")
     d = univ.dropna(subset=["p1_1_cresc_real_aa"]).copy()
     l1c1, l1c2 = st.columns(2)
 
@@ -280,7 +350,7 @@ with aba1:
             fig.add_trace(go.Scatter(
                 x=d["p1_1_cresc_real_aa"] * 100, y=d["share_carteira"] * 100,
                 mode="markers", text=_hover(d), hoverinfo="text",
-                marker=dict(size=_tamanho(d), color=TEMA["primaria"], opacity=0.55,
+                marker=dict(size=_tamanho(d), color=TEMA["marca"], opacity=0.55,
                             line=dict(width=0.5, color="white"))))
             fig.add_vline(x=med * 100, line=dict(color=TEMA["referencia"], width=1),
                           annotation_text="mediana", annotation_position="top")
@@ -352,7 +422,7 @@ with aba1:
             st.info("Sem dados de capital no recorte (relatório só existe a partir de 2023Q3).")
         else:
             cores = [TEMA["risco_alto"] if v > 1.2 else
-                     TEMA["risco_medio"] if v > 1.0 else TEMA["primaria"]
+                     TEMA["risco_medio"] if v > 1.0 else TEMA["marca"]
                      for v in dc["p1_4_cresc_carteira_sobre_capital"]]
             fig = go.Figure(go.Bar(
                 x=dc["p1_4_cresc_carteira_sobre_capital"],
@@ -372,7 +442,8 @@ with aba1:
 
 # ================================================================== P2
 with aba2:
-    st.markdown("#### P2 — Quais concentram a carteira em modalidades, regiões ou funding de risco?")
+    st.markdown(f"#### {T.txt('abas.p2')}")
+    faixa_cartoes("p2")
     m1c1, m1c2 = st.columns(2)
 
     # ---- 1. HHI e CR5 do sistema
@@ -385,7 +456,7 @@ with aba2:
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=[fmt_trimestre(x) for x in sist["data_base"]],
                                  y=sist["hhi"], name="HHI", mode="lines+markers",
-                                 line=dict(color=TEMA["primaria"], width=2.5),
+                                 line=dict(color=TEMA["marca"], width=2.5),
                                  marker=dict(size=4)))
         fig.add_trace(go.Scatter(x=[fmt_trimestre(x) for x in sist["data_base"]],
                                  y=sist["cr5"], name="CR5 (%)", mode="lines+markers",
@@ -414,7 +485,7 @@ with aba2:
         else:
             fig = go.Figure()
             paleta = {"Cartão": TEMA["risco_alto"], "Sem consignação": TEMA["risco_medio"],
-                      "Consignado": TEMA["primaria_clara"], "Veículos": TEMA["primaria"],
+                      "Consignado": TEMA["marca_clara"], "Veículos": TEMA["marca"],
                       "Habitação": TEMA["sequencial"][2], "Rural": TEMA["sequencial"][1],
                       "Outros": TEMA["neutro"]}
             for col, nome in mods.items():
@@ -468,7 +539,7 @@ with aba2:
             fig = go.Figure(go.Scatter(
                 x=dl["p1_1_cresc_real_aa"] * 100, y=dl["p2_6_loan_to_deposit"],
                 mode="markers", text=_hover(dl), hoverinfo="text",
-                marker=dict(size=_tamanho(dl), color=TEMA["primaria"], opacity=0.55,
+                marker=dict(size=_tamanho(dl), color=TEMA["marca"], opacity=0.55,
                             line=dict(width=0.5, color="white"))))
             fig.add_hline(y=1.0, line=dict(color=TEMA["referencia"], width=1, dash="dash"),
                           annotation_text="carteira = captações")
@@ -486,7 +557,8 @@ with aba2:
 
 # ================================================================== P3
 with aba3:
-    st.markdown("#### P3 — Quem mostra deterioração incompatível com o ritmo de crescimento?")
+    st.markdown(f"#### {T.txt('abas.p3')}")
+    faixa_cartoes("p3")
 
     regime = univ["regime_contabil"].dropna().unique()
     if len(regime):
@@ -573,7 +645,7 @@ with aba3:
             fig.add_trace(go.Scatter(
                 x=dd["p3_1_inadimplencia"] * 100, y=dd["p3_4_inadimplencia_ajustada"] * 100,
                 mode="markers", text=_hover(dd), hoverinfo="text", showlegend=False,
-                marker=dict(size=_tamanho(dd, 34), color=TEMA["primaria"], opacity=0.55,
+                marker=dict(size=_tamanho(dd, 34), color=TEMA["marca"], opacity=0.55,
                             line=dict(width=0.5, color="white"))))
             fig.update_xaxes(title="Inadimplência corrente (%)", range=[0, lim])
             fig.update_yaxes(title="Ajustada ao crescimento (%)", range=[0, lim])
@@ -593,7 +665,7 @@ with aba3:
             fig = go.Figure(go.Scatter(
                 x=dq["p3_2_cobertura"] * 100, y=dq["p3_5_ativos_problematicos"] * 100,
                 mode="markers", text=_hover(dq), hoverinfo="text",
-                marker=dict(size=_tamanho(dq, 34), color=TEMA["primaria"], opacity=0.55,
+                marker=dict(size=_tamanho(dq, 34), color=TEMA["marca"], opacity=0.55,
                             line=dict(width=0.5, color="white"))))
             fig.add_vline(x=100, line=dict(color=TEMA["risco_alto"], width=1.2, dash="dash"),
                           annotation_text="cobertura 100%")
@@ -614,7 +686,7 @@ with aba3:
             st.info("Sem dados de capital nesta data-base.")
         else:
             cores = [TEMA["risco_alto"] if v < 2 else
-                     TEMA["risco_medio"] if v < 5 else TEMA["primaria"]
+                     TEMA["risco_medio"] if v < 5 else TEMA["marca"]
                      for v in dk["p3_6_folga_capital_pp"]]
             fig = go.Figure(go.Bar(
                 x=dk["p3_6_folga_capital_pp"], y=[n[:22] for n in dk["instituicao"]],
@@ -633,11 +705,10 @@ with aba3:
 
 # ================================================================== COMPARADOR
 with aba4:
-    st.markdown("#### Comparador de instituições")
+    st.markdown(f"#### {T.txt('comparador.titulo')}")
     st.markdown(
-        "<div class='bloco-lrc'><b>Leitura.</b> Os mesmos indicadores, lado a lado, para as "
-        "instituições que você escolher.<br><b>Consequência.</b> É aqui que se decide entre duas "
-        "candidatas com score parecido: o score resume, o comparador mostra <i>por quê</i>.</div>",
+        f"<div class='bloco-lrc'><b>Leitura.</b> {T.txt('comparador.leitura')}<br>"
+        f"<b>Consequência.</b> {T.txt('comparador.consequencia')}</div>",
         unsafe_allow_html=True)
 
     opcoes = (univ.sort_values("carteira_credito_real", ascending=False)

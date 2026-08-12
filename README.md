@@ -23,6 +23,40 @@ perfil de **crescimento**, **concentração** e **potencial de deterioração** 
 .venv/Scripts/streamlit.exe run app.py
 ```
 
+## Editar os textos
+
+**Todo texto da tela está em [`textos.toml`](textos.toml)** — na raiz do projeto, fora do
+código. Não é preciso saber Python.
+
+O jeito mais rápido, sem instalar nada: abra o arquivo no GitHub, clique no lápis, edite,
+e clique em *Commit changes*. O Streamlit Cloud detecta o commit e republica sozinho em
+cerca de 1 minuto.
+
+Rodando local, basta salvar o arquivo e recarregar a página — **não precisa reiniciar**.
+
+Quatro regras:
+
+1. O texto fica entre três aspas: `"""` … `"""`
+2. Não mude o que está entre colchetes (`[p1_1]`) — é o endereço do bloco
+3. Acentos podem ser usados normalmente
+4. Aceita `**negrito**`, `*itálico*` e `<i>itálico</i>`
+
+Se errar a sintaxe, o painel **não quebra**: mostra um aviso no topo com o número da linha
+e segue funcionando.
+
+## Mudar a aparência
+
+Duas peças, ambas isoladas do resto:
+
+| arquivo | o que controla |
+|---|---|
+| [`src/tema.py`](src/tema.py) | paleta, tipografia, CSS dos cartões, layout dos gráficos, sparklines |
+| [`.streamlit/config.toml`](.streamlit/config.toml) | cores base que o próprio Streamlit usa |
+
+As duas precisam ficar coerentes: `config.toml` espelha as cores de `tema.py`.
+No `TEMA`, o marrom (`acento`) é cor de **estrutura**; vermelho, âmbar e verde são
+reservados **só para risco**; e `marca` é a cor das marcas de dados nos gráficos.
+
 ## Reproduzir os dados do zero
 
 ```bash

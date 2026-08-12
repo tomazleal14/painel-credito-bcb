@@ -2,10 +2,10 @@
 # Para mudar a aparencia, edite ESTE arquivo e src/tema.py.
 [theme]
 base = "light"
-primaryColor = "#0F4C5C"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F5F7F8"
-textColor = "#1A2428"
+primaryColor = "#8F6644"
+backgroundColor = "#F3EFE5"
+secondaryBackgroundColor = "#FAF8F2"
+textColor = "#1A1D21"
 font = "sans serif"
 
 [server]
