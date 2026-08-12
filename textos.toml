@@ -108,14 +108,27 @@ oscilação é o que se quer ver. As faixas usadas: **abaixo de 5%** é baixo, *
 """
 
 por_que_decompor = """
-Quem define quais instituições são "risco alto" é o **score de posição relativa** (0 a 1):
-cada indicador do eixo vira um percentil dentro do grupo de mesmo TCB, e a média desses
-percentis é o score da instituição; **0,75 ou mais** entra como risco alto. O score
-aparece no rodapé do cartão e na tabela da agenda, mas **não lidera** — percentil tem
-mediana 0,50 por construção, então um número derivado dele varia pouco e diz pouco.
+Quem define quais instituições são "risco alto" é o **score de posição relativa** (0 a 1),
+em quatro passos: (1) o grupo de pares é o conjunto de instituições do mesmo TCB no
+trimestre; (2) cada indicador do eixo vira um **percentil** dentro desse grupo; (3) a
+**média desses percentis** é o score da instituição — indicador sem dado reduz o divisor,
+não conta como zero; (4) score **≥ 0,75** entra como risco alto, e a carteira dela soma
+no número de destaque. O score fica no rodapé do cartão e na agenda, mas não lidera:
+percentil tem mediana 0,50 por construção, então um número derivado dele varia pouco.
+"""
+
+os_componentes = """
+A lista no pé do cartão é a **mediana das instituições sinalizadas** em cada indicador
+que forma o score — ou seja, ela responde *por que aquelas foram marcadas*. Entre
+parênteses vai o valor do recorte inteiro, como referência. Em 03/2026, por exemplo, as
+7 sinalizadas em Concentração tinham **99,9%** da carteira PF em modalidades de alto
+risco, contra 27,7% do recorte; as 10 de Deterioração tinham inadimplência de **8,61%**
+contra 4,03%, com cobertura de **73%** contra 155%.
+
 Atenção a uma assimetria: os eixos **não têm o mesmo número de percentis** — Concentração
-usa 4, e não 6, porque HHI do sistema e CR5 são idênticos para todas as instituições e
-não geram percentil. Cada cartão declara quantos entram na sua média.
+usa 4, e não 6, porque HHI do sistema e CR5 são idênticos para todas as instituições do
+trimestre e um valor igual para todos não gera percentil (todos empatariam). Cada cartão
+declara quantos entram na sua média.
 """
 
 # ---------------------------------------------------------------------------

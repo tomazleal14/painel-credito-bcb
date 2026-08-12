@@ -238,7 +238,8 @@ def _css(t: dict) -> str:
   .cartao-comp {{ font-size: {t["cartao_rodape"]}px; color: {TEMA['texto_3']}; line-height: 1.65;
                   border-top: 1px solid {TEMA['borda']}; padding-top: 8px;
                   margin-top: 9px; }}
-  .cartao-comp b {{ color: {TEMA['texto_2']}; font-weight: 500; }}
+  .cartao-comp b {{ color: {TEMA['texto_2']}; font-weight: 570; }}
+  .cartao-comp .ref {{ color: {TEMA['texto_3']}; font-size: 0.92em; }}
   .cartao-escala {{ font-size: 10.5px; color: {TEMA['texto_3']}; margin: -2px 0 6px 0;
                     letter-spacing: 0.01em; }}
 

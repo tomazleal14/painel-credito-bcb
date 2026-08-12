@@ -226,22 +226,30 @@ def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
         rumo = "subindo" if d > 1 else ("cedendo" if d < -1 else "estável")
         delta_txt = f"{rumo} · {seta} {num(abs(d), 1)} p.p. em 12 meses"
 
-    # decomposicao: os indicadores do eixo, com a mediana de cada um.
-    # Cada nome carrega a dica do glossario no title=, para decifrar a sigla sem sair da tela.
+    # Decomposicao: a mediana de cada indicador NAS INSTITUICOES SINALIZADAS -- as
+    # mesmas que formam o numero de destaque. Antes a mediana era de todo o recorte, o
+    # que descrevia outra populacao e nao explicava o destaque: no 03/2026 o cartao
+    # mostrava credit gap -6,7% e 0 trimestres acima de 15% (perfil de sistema calmo)
+    # logo abaixo de "7,2% da carteira sinalizada".
+    # Entre parenteses vai o valor do recorte inteiro, como REFERENCIA de comparacao.
+    marcadas = df_atual[df_atual[col_sem] == "alto"] if col_sem in df_atual else df_atual.iloc[0:0]
     partes = []
     for c in INDICADORES_POR_EIXO.get(eixo, []):
         if c not in df_atual.columns:
             continue
         r, u, f, ca, _s = FORMATO.get(c, (c, "", 1, 2, "neutro"))
-        s = df_atual[c].replace([np.inf, -np.inf], np.nan).dropna()
-        valor_txt = "—" if s.empty else f"{num(float(s.median()) * f, ca)}{u}"
+        sinal = marcadas[c].replace([np.inf, -np.inf], np.nan).dropna()
+        todas = df_atual[c].replace([np.inf, -np.inf], np.nan).dropna()
+        v_sinal = "—" if sinal.empty else f"{num(float(sinal.median()) * f, ca)}{u}"
+        v_todas = "—" if todas.empty else f"{num(float(todas.median()) * f, ca)}{u}"
         dica = _dica(glossario, c)
         nome = (f'<span class="termo" title="{dica}">{r}</span>' if dica else r)
-        partes.append(f"{nome} <b>{valor_txt}</b>")
+        partes.append(f"{nome} <b>{v_sinal}</b> "
+                      f"<span class='ref'>(recorte {v_todas})</span>")
 
-    comp_txt = (f"componentes — média de <b>{n_percentis}</b> percentis "
-                f"(mediana do recorte, em unidades reais):"
-                if n_percentis else "componentes (mediana do recorte, em unidades reais):")
+    comp_txt = (f"por que estas {n_alto} foram sinalizadas — mediana delas em cada um dos "
+                f"<b>{n_percentis}</b> indicadores que formam o score:"
+                if n_percentis else "componentes:")
 
     return f"""
     <div class="cartao">

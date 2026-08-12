@@ -210,7 +210,9 @@ with aba0:
     st.markdown(
         f"<div class='bloco-lrc'><b>O que é o número.</b> {T.txt('sintese.o_que_e_o_numero')}"
         f"<br><br><b>Como ler.</b> {T.txt('sintese.como_ler')}"
-        f"<br><br><b>Por que decompor.</b> {T.txt('sintese.por_que_decompor')}</div>",
+        f"<br><br><b>Quem é marcado como risco alto.</b> "
+        f"{T.txt('sintese.por_que_decompor')}"
+        f"<br><br><b>Os componentes.</b> {T.txt('sintese.os_componentes')}</div>",
         unsafe_allow_html=True)
 
     # sintese factual do trimestre, calculada -- nao escrita a mao.
