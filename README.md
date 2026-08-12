@@ -23,6 +23,22 @@ perfil de **crescimento**, **concentração** e **potencial de deterioração** 
 .venv/Scripts/streamlit.exe run app.py
 ```
 
+## Se o app quebrar no Streamlit Cloud
+
+Erro de importação no Cloud com o app funcionando local quase sempre é uma destas duas
+causas:
+
+1. **Dependência ausente** no `requirements.txt`. Rode `src/checa_dependencias.py`: ele
+   percorre a cadeia de imports a partir de `app.py` e acusa qualquer pacote usado em
+   execução que não esteja declarado.
+2. **Deploy defasado.** O Cloud às vezes serve uma versão anterior do código, e o erro
+   aparece como um nome que não existe no módulo (`cannot import name X`). Confira se o
+   arquivo no GitHub já tem o que falta; se tiver, force **Manage app → Reboot app**.
+
+Dependências de execução ficam em `requirements.txt` (5 pacotes); as de coleta, em
+`requirements-dev.txt`. `src/comum.py` importa `requests` **dentro** da função de
+download justamente para não obrigar o Cloud a instalá-lo.
+
 ## Editar os textos
 
 **Todo texto da tela está em [`textos.toml`](textos.toml)** — na raiz do projeto, fora do
@@ -106,6 +122,7 @@ reservados **só para risco**; e `marca` é a cor das marcas de dados nos gráfi
 ## Conferir (tudo reexecutável)
 
 ```bash
+.venv/Scripts/python.exe src/checa_dependencias.py # o app só importa o que está no requirements
 .venv/Scripts/python.exe src/testa_extracao.py     # reproduz a tela oficial do IF.data
 .venv/Scripts/python.exe src/valida_cruzada.py     # confronta com SGS e SCR
 .venv/Scripts/python.exe src/audita_raw.py         # 950 arquivos, 0 invalidos

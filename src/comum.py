@@ -15,7 +15,12 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-import requests
+# `requests` e importado DENTRO de baixa(), nao aqui no topo, de proposito:
+# o painel importa este modulo apenas para saber os caminhos (DATA_PROC, DATA_RAW),
+# e nao baixa nada em execucao. Com o import no topo, o app exigiria `requests`
+# instalado no Streamlit Cloud so para ler uma constante -- e quebrava com
+# ImportError quando a dependencia saiu do requirements.txt de execucao.
+# Os scripts de coleta continuam funcionando normalmente (ver requirements-dev.txt).
 
 RAIZ = Path(__file__).resolve().parent.parent
 DATA_RAW = RAIZ / "data_raw"
@@ -67,6 +72,8 @@ def baixa(url: str, destino: Path, fonte: str, comprimir: bool = False,
     O sha256 registrado e SEMPRE o do conteudo original descomprimido, para que a
     verificacao independa da forma de armazenamento.
     """
+    import requests  # dependencia de COLETA, nao de execucao do painel
+
     destino.parent.mkdir(parents=True, exist_ok=True)
     alvo = destino.with_suffix(destino.suffix + ".gz") if comprimir else destino
 
