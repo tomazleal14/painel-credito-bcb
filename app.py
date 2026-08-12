@@ -199,7 +199,11 @@ with aba0:
                     hist, univ, eixo,
                     T.txt(f"eixos.{eixo}.rotulo", eixo.capitalize()),
                     T.txt(f"eixos.{eixo}.descricao", ""),
-                    glossario=gloss_ind),
+                    glossario=gloss_ind,
+                    # os eixos NAO tem o mesmo numero de percentis: concentracao usa 4,
+                    # porque HHI do sistema e CR5 sao iguais para todas as instituicoes
+                    # e nao geram percentil. Isso fica declarado no cartao.
+                    n_percentis=len(cartoes.INDICADORES_POR_EIXO.get(eixo, []))),
                 unsafe_allow_html=True)
 
     # ---- o que o numero grande significa, e a sintese dos achados ----
@@ -209,20 +213,32 @@ with aba0:
         f"<br><br><b>Por que decompor.</b> {T.txt('sintese.por_que_decompor')}</div>",
         unsafe_allow_html=True)
 
-    # sintese factual do trimestre, calculada -- nao escrita a mao
+    # sintese factual do trimestre, calculada -- nao escrita a mao.
+    # Ordena a pressao por CARTEIRA EXPOSTA, nao por contagem de instituicoes: 54
+    # cooperativas pequenas sinalizadas pesam menos que um grande banco sinalizado.
+    exposta = {e: cartoes.carteira_exposta(univ, e) for e in EIXOS}
+    exposta = {e: (float(s.iloc[-1]) if len(s) else 0.0) for e, s in exposta.items()}
     n_alto = {e: int((univ[f"sem_{e}"] == "alto").sum()) for e in EIXOS}
-    pior = max(n_alto, key=n_alto.get)
+    pior = max(exposta, key=exposta.get)
     rot = {e: T.bruto(f"eixos.{e}.rotulo", e).lower() for e in EIXOS}
     quadrante = univ[(univ["p1_1_cresc_real_aa"] > univ["p1_1_cresc_real_aa"].median())
                      & (univ["p3_1_inadimplencia"] < univ["p3_1_inadimplencia"].median())]
+    carteira_quadrante = (quadrante["carteira_credito_real"].sum()
+                          / univ["carteira_credito_real"].sum() * 100
+                          if univ["carteira_credito_real"].sum() else 0.0)
     st.markdown(
         f"<div class='aviso'><b>Neste recorte ({fmt_trimestre(dt_sel)}):</b> "
-        f"{n_alto['crescimento']} instituições em risco alto de crescimento, "
-        f"{n_alto['concentracao']} de concentração e {n_alto['deterioracao']} de deterioração — "
-        f"a maior pressão vem de <b>{rot[pior]}</b>. "
-        f"<b>{len(quadrante)}</b> estão no quadrante-assinatura de P3 "
-        f"(crescem acima da mediana e ainda exibem inadimplência abaixo dela), "
-        f"que é onde o efeito denominador costuma esconder perda futura.</div>",
+        f"a carteira exposta a risco alto é de "
+        f"<b>{cartoes.num(exposta['crescimento'], 1)}%</b> em crescimento, "
+        f"<b>{cartoes.num(exposta['concentracao'], 1)}%</b> em concentração e "
+        f"<b>{cartoes.num(exposta['deterioracao'], 1)}%</b> em deterioração — "
+        f"a maior pressão vem de <b>{rot[pior]}</b> "
+        f"({n_alto[pior]} instituições sinalizadas). "
+        f"<b>{len(quadrante)}</b> instituições, com "
+        f"<b>{cartoes.num(carteira_quadrante, 1)}%</b> da carteira, estão no "
+        f"quadrante-assinatura de P3 — crescem acima da mediana e ainda exibem "
+        f"inadimplência abaixo dela, que é onde o efeito denominador costuma esconder "
+        f"perda futura.</div>",
         unsafe_allow_html=True)
 
     with st.expander("O que cada indicador mede — glossário dos 18"):

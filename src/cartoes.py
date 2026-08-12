@@ -172,34 +172,59 @@ def _dica(glossario: dict, chave: str) -> str:
                  .replace("\n", "&#10;"))
 
 
+def carteira_exposta(df: pd.DataFrame, eixo: str) -> pd.Series:
+    """Por trimestre: fatia da carteira do recorte que esta em instituicoes sinalizadas
+    como risco alto naquele eixo.
+
+    Por que esta e a medida de destaque, e nao a mediana dos scores: o score e um
+    PERCENTIL, e percentil tem mediana 0,50 por construcao. Medido em 29 trimestres, o
+    numero de concentracao variou 0,037 no total -- e some o recorte inteiro e ele vai a
+    0,50 exatamente. Ja a carteira exposta variou de 7% a 43% e pondera por tamanho, que
+    e o que separa uma cooperativa de R$ 2 bi da Caixa.
+    """
+    col_sem = f"sem_{eixo}"
+    if col_sem not in df.columns or "carteira_credito_real" not in df.columns:
+        return pd.Series(dtype=float)
+    g = df.groupby("data_base")
+    total = g["carteira_credito_real"].sum()
+    alto = (df[df[col_sem] == "alto"].groupby("data_base")["carteira_credito_real"]
+              .sum().reindex(total.index, fill_value=0.0))
+    return (alto / total.where(total > 0) * 100).dropna().sort_index()
+
+
 def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
-                rotulo: str, descricao: str, glossario: dict | None = None) -> str:
-    """Cartao de um EIXO (crescimento / concentracao / deterioracao), no padrao
-    subindice -> componentes: score do eixo, sparkline e a decomposicao nos
-    indicadores que o formam."""
+                rotulo: str, descricao: str, glossario: dict | None = None,
+                n_percentis: int | None = None) -> str:
+    """Cartao de um EIXO, no padrao subindice -> componentes.
+
+    Destaque: CARTEIRA EXPOSTA a risco alto (% do recorte). O score do eixo continua
+    calculado e usado no ranking, mas nao lidera o cartao -- ver `carteira_exposta`.
+    """
     col_score = f"score_{eixo}"
     col_sem = f"sem_{eixo}"
 
-    serie = _serie_mediana(df_hist, col_score)
-    atual = df_atual[col_score].dropna() if col_score in df_atual else pd.Series(dtype=float)
-    valor = float(atual.median()) if len(atual) else float("nan")
+    serie = carteira_exposta(df_hist, eixo)
+    valor = float(serie.iloc[-1]) if len(serie) else float("nan")
 
-    # quantas instituicoes estao em risco alto neste eixo
     n_alto = int((df_atual[col_sem] == "alto").sum()) if col_sem in df_atual else 0
     n_tot = int(df_atual[col_sem].isin(["alto", "medio", "baixo"]).sum()) if col_sem in df_atual else 0
+    score_mediano = (float(df_atual[col_score].dropna().median())
+                     if col_score in df_atual and df_atual[col_score].notna().any()
+                     else float("nan"))
 
-    nivel = "alto" if valor >= 0.75 else "medio" if valor >= 0.50 else "baixo"
+    # faixas de exposicao da carteira -- nao sao percentis, sao fatias do recorte
+    nivel = "alto" if valor >= 20 else "medio" if valor >= 5 else "baixo"
     cor, soft = SEMAFORO[nivel], SEMAFORO_SOFT[nivel]
 
     spark = sparkline(list(serie.values), cor=cor,
-                      linha_base=0.5 if len(serie) else None)
+                      linha_base=float(serie.median()) if len(serie) else None)
 
     delta_txt = ""
     if len(serie) >= 5:
         d = serie.iloc[-1] - serie.iloc[-5]
         seta = "▲" if d > 0 else ("▼" if d < 0 else "•")
-        rumo = "subindo" if d > 0.02 else ("cedendo" if d < -0.02 else "estável")
-        delta_txt = f"{rumo} · {seta} {num(abs(d), 3)} em 12 meses"
+        rumo = "subindo" if d > 1 else ("cedendo" if d < -1 else "estável")
+        delta_txt = f"{rumo} · {seta} {num(abs(d), 1)} p.p. em 12 meses"
 
     # decomposicao: os indicadores do eixo, com a mediana de cada um.
     # Cada nome carrega a dica do glossario no title=, para decifrar a sigla sem sair da tela.
@@ -214,19 +239,23 @@ def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
         nome = (f'<span class="termo" title="{dica}">{r}</span>' if dica else r)
         partes.append(f"{nome} <b>{valor_txt}</b>")
 
+    comp_txt = (f"componentes — média de <b>{n_percentis}</b> percentis "
+                f"(mediana do recorte, em unidades reais):"
+                if n_percentis else "componentes (mediana do recorte, em unidades reais):")
+
     return f"""
     <div class="cartao">
       <div class="cartao-topo">
         <span class="cartao-rotulo">{rotulo}</span>
-        <span class="selo" style="background:{soft};color:{cor}">{n_alto} em risco alto</span>
+        <span class="selo" style="background:{soft};color:{cor}">{n_alto} de {n_tot} IFs</span>
       </div>
-      <div class="cartao-valor" style="color:{cor}">{num(valor, 2)}<span
-        class="unidade" title="Score de posição relativa dentro do grupo de pares.&#10;0 = menor risco do grupo · 0,50 = mediana · 1 = maior risco.">
-        de 1,00</span></div>
-      <div class="cartao-escala">score de posição relativa · 0,50 = mediana dos pares</div>
+      <div class="cartao-valor" style="color:{cor}">{num(valor, 1)}<span
+        class="unidade" title="Soma da carteira das instituições sinalizadas como risco alto neste eixo, dividida pela carteira total do recorte.">%</span></div>
+      <div class="cartao-escala">da carteira do recorte está em instituições sinalizadas
+        neste eixo</div>
       <div class="cartao-releitura">{descricao}</div>
       <div class="cartao-spark">{spark}</div>
-      <div class="cartao-meta">{delta_txt} · {n_tot} instituições avaliadas</div>
-      <div class="cartao-comp">componentes (mediana do recorte, em unidades reais):<br>{' · '.join(partes)}</div>
+      <div class="cartao-meta">{delta_txt} · score mediano {num(score_mediano, 2)}</div>
+      <div class="cartao-comp">{comp_txt}<br>{' · '.join(partes)}</div>
     </div>
     """

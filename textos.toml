@@ -89,30 +89,33 @@ descricao = "Qualidade da carteira frente ao ritmo de crescimento e à folga de 
 #  Sintese e explicacao do score -- o texto sob os tres cartoes da Visao geral
 # ---------------------------------------------------------------------------
 [sintese]
-titulo = "Os três eixos, decompostos — nunca um número único opaco"
+titulo = "Os três eixos, e quanto da carteira cada um coloca em risco"
 
 o_que_e_o_numero = """
-O número grande de cada cartão é um **score de posição relativa**, entre 0 e 1. Não é
-percentual, não é reais, não é taxa: é **onde a instituição típica do recorte se situa
-dentro do seu grupo de pares**. Calcula-se assim: cada indicador do eixo vira um
-percentil dentro do grupo de mesmo TCB no trimestre (0 = menor risco do grupo,
-1 = maior); o score do eixo é a média desses percentis; o cartão mostra a **mediana**
-desse score entre as instituições do recorte.
+O número grande é a **fatia da carteira do recorte que está em instituições sinalizadas
+como risco alto naquele eixo**. Se aparece 7,2% em Crescimento, significa: somando a
+carteira de todas as instituições que o painel marcou como risco alto de crescimento,
+elas respondem por 7,2% do crédito do recorte. É percentual de carteira, não de
+instituições — o selo ao lado traz a contagem (**54 de 258 IFs**).
 """
 
 como_ler = """
-**0,50** é, por construção, a mediana do grupo — metade das instituições acima, metade
-abaixo. **0,75 ou mais** é o quartil superior de risco. Como é medida relativa, o score
-**nunca some**: se todo o sistema piorar junto, a mediana continua perto de 0,50. Por
-isso o cartão traz também os componentes em unidades reais (% a.a., ×, p.p.) — são eles
-que dizem se o nível absoluto é alto ou baixo.
+Ele **pondera por tamanho**, e é por isso que serve à decisão: uma cooperativa de R$ 2
+bilhões sinalizada não move o número; a Caixa sinalizada move muito. Nos últimos
+trimestres a carteira exposta a risco de crescimento foi de 43% para 7% — esse tipo de
+oscilação é o que se quer ver. As faixas usadas: **abaixo de 5%** é baixo, **5% a 20%**
+é atenção, **acima de 20%** é alto.
 """
 
 por_que_decompor = """
-O selo **"N em risco alto"** conta quantas instituições do recorte estão em 0,75 ou mais
-naquele eixo — é o número que vira agenda. A decomposição em componentes existe para que
-nenhuma decisão dependa de um número agregado: dois eixos podem marcar 0,51 por motivos
-completamente diferentes, e é a lista de componentes que revela qual.
+Quem define quais instituições são "risco alto" é o **score de posição relativa** (0 a 1):
+cada indicador do eixo vira um percentil dentro do grupo de mesmo TCB, e a média desses
+percentis é o score da instituição; **0,75 ou mais** entra como risco alto. O score
+aparece no rodapé do cartão e na tabela da agenda, mas **não lidera** — percentil tem
+mediana 0,50 por construção, então um número derivado dele varia pouco e diz pouco.
+Atenção a uma assimetria: os eixos **não têm o mesmo número de percentis** — Concentração
+usa 4, e não 6, porque HHI do sistema e CR5 são idênticos para todas as instituições e
+não geram percentil. Cada cartão declara quantos entram na sua média.
 """
 
 # ---------------------------------------------------------------------------
