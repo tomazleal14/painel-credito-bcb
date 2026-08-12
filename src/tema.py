@@ -146,9 +146,17 @@ CSS = f"""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@350;420;500;570;650&display=swap');
 
-  html, body, [class*="st-"], .stApp {{ font-family: {FONTE}; }}
+  /* A fonte e aplicada por HERANCA a partir da raiz. NAO usar um seletor amplo como
+     [class*="st-"]: ele atinge tambem os <span> de icone do Streamlit, que dependem da
+     fonte "Material Symbols" para transformar o texto do ligature no desenho do icone.
+     Com a fonte trocada, o icone vira o texto cru ("keyboard_arrow_right") na tela. */
+  html, body, .stApp {{ font-family: {FONTE}; }}
   .stApp {{ background: {TEMA['fundo']}; }}
   .block-container {{ padding-top: 2.2rem; max-width: 1500px; }}
+
+  /* devolve a fonte de icones para os elementos que dependem dela */
+  [data-testid="stIconMaterial"], .material-icons, .material-symbols-rounded,
+  span[translate="no"] {{ font-family: "Material Symbols Rounded", "Material Icons" !important; }}
 
   /* ---------- cabecalho ---------- */
   .cabecalho {{ border-bottom: 2px solid {TEMA['acento']}; padding-bottom: 12px;
@@ -213,6 +221,30 @@ CSS = f"""
   /* ---------- barra lateral ---------- */
   section[data-testid="stSidebar"] {{ background: {TEMA['surface_2']};
                                       border-right: 1px solid {TEMA['borda']}; }}
+  section[data-testid="stSidebar"] .block-container {{ padding-top: 1.2rem; }}
+
+  .filtro-titulo {{ font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+                    font-weight: 570; color: {TEMA['acento_ink']};
+                    border-bottom: 1px solid {TEMA['borda_forte']};
+                    padding-bottom: 5px; margin: 16px 0 2px 0; }}
+  .filtro-ajuda {{ font-size: 11px; line-height: 1.5; color: {TEMA['texto_3']};
+                   margin: -4px 0 8px 0; }}
+  .filtro-resumo {{ background: {TEMA['acento_soft']}; border: 1px solid {TEMA['borda_forte']};
+                    border-radius: 4px; padding: 9px 11px; font-size: 11.5px;
+                    line-height: 1.55; color: {TEMA['texto_2']}; margin-bottom: 6px; }}
+  .filtro-resumo b {{ color: {TEMA['acento_ink']}; font-variant-numeric: tabular-nums; }}
+
+  /* glossario de siglas */
+  .glossario {{ font-size: 11.5px; line-height: 1.6; }}
+  .glossario table {{ width: 100%; border-collapse: collapse; }}
+  .glossario td {{ padding: 4px 6px; border-bottom: 1px solid {TEMA['borda']};
+                   vertical-align: top; }}
+  .glossario td.cod {{ font-weight: 650; color: {TEMA['acento_ink']}; white-space: nowrap;
+                       font-variant-numeric: tabular-nums; }}
+  .glossario td.qtd {{ color: {TEMA['texto_3']}; white-space: nowrap; text-align: right;
+                       font-variant-numeric: tabular-nums; }}
+  .glossario .dim {{ font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+                     color: {TEMA['texto_3']}; font-weight: 570; margin: 12px 0 4px 0; }}
 
   h4 {{ font-size: 17px; font-weight: 570; letter-spacing: -0.008em;
         color: {TEMA['texto']}; margin-top: 6px; }}

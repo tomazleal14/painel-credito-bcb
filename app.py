@@ -21,6 +21,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 import cartoes
+import filtros
 import textos as _textos
 from scoring import EIXOS, PESOS_PADRAO, agenda, calcula_scores
 from tema import (ALTURA_GRAFICO, ALTURA_GRAFICO_GRANDE, CSS, ICONE_SEMAFORO,
@@ -98,44 +99,34 @@ def fonte(txt: str) -> None:
 
 
 # ------------------------------------------------------------------ barra lateral
-st.sidebar.markdown("### Filtros")
-
 trimestres = sorted(ind["data_base"].unique())
-dt_sel = st.sidebar.selectbox("Data-base", trimestres, index=len(trimestres) - 1,
-                              format_func=fmt_trimestre)
-
-tcbs = sorted(ind["tcb"].dropna().unique())
-tcb_sel = st.sidebar.multiselect("Tipo de instituição (TCB)", tcbs, default=tcbs)
-
-segs = sorted(ind["segmento_sr"].dropna().unique())
-seg_sel = st.sidebar.multiselect("Segmento (Res. 4.553)", segs, default=segs)
-
-porte_min = st.sidebar.select_slider(
-    "Carteira mínima (R$)", options=[0, 1e8, 5e8, 1e9, 5e9, 2e10, 1e11],
-    value=1e9,
-    format_func=lambda v: "sem corte" if v == 0 else f"R$ {v/1e9:,.1f} bi".replace(",", "."))
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("##### Pesos do score final")
-pesos = {e: st.sidebar.slider(e.capitalize(), 0.0, 1.0, PESOS_PADRAO[e], 0.05)
-         for e in EIXOS}
-if sum(pesos.values()) == 0:
-    pesos = PESOS_PADRAO
-
-st.sidebar.markdown("---")
-st.sidebar.caption(
-    f"Valores reais em R$ de {fmt_trimestre(BASE_DEFL)}, deflacionados pelo IPCA (SGS 433).\n\n"
-    f"Universo: IF.data, {fmt_trimestre(min(trimestres))}–{fmt_trimestre(max(trimestres))}.")
+f = filtros.barra_lateral(ind, PESOS_PADRAO, EIXOS)
+dt_sel, tcb_sel = f["dt_sel"], f["tcb_sel"]
+seg_sel, porte_min, pesos = f["seg_sel"], f["porte_min"], f["pesos"]
 
 # aplica filtros
 base = ind[ind["tcb"].isin(tcb_sel) & ind["segmento_sr"].isin(seg_sel)].copy()
 if base.empty:
+    st.sidebar.error("Nenhuma instituição atende a esta combinação.")
     st.error("Nenhuma instituição atende aos filtros. Amplie a seleção na barra lateral.")
     st.stop()
 
 scored = calcula_scores(base, grupo_pares="tcb", pesos=pesos)
 univ = scored[(scored["data_base"] == dt_sel)
               & (scored["carteira_credito_real"] >= porte_min)].copy()
+
+# resumo do recorte -- fecha o ciclo: o usuario ve o efeito do que escolheu
+_carteira_tri = cartoes.num(univ["carteira_credito_real"].sum() / 1e12, 2)
+st.sidebar.markdown(
+    f"<div class='filtro-resumo'>Recorte atual<br>"
+    f"<b>{len(univ)}</b> instituições · carteira somada "
+    f"<b>R$ {_carteira_tri} tri</b><br>"
+    f"data-base <b>{fmt_trimestre(dt_sel)}</b> · corte de "
+    f"<b>{filtros.fmt_reais(porte_min)}</b></div>",
+    unsafe_allow_html=True)
+st.sidebar.caption(
+    f"Valores reais em R$ de {fmt_trimestre(BASE_DEFL)}, deflacionados pelo IPCA (SGS 433). "
+    f"Universo: IF.data, {fmt_trimestre(min(trimestres))}–{fmt_trimestre(max(trimestres))}.")
 
 
 # ------------------------------------------------------------------ cabecalho

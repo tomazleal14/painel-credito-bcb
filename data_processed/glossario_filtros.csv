@@ -1,0 +1,19 @@
+﻿dimensao,dimensao_rotulo,codigo,descricao,data_base,n_instituicoes,carteira_min_bi,carteira_max_bi,data_base_observado
+tcb,TCB - Tipo de Consolidado Bancário,b1,"Banco Comercial, Banco Múltiplo com Carteira Comercial ou Caixa Econômica",202603,96,0.00,1343.4,202603
+tcb,TCB - Tipo de Consolidado Bancário,b2,Banco Múltiplo sem Carteira Comercial ou Banco de Investimento ou Banco de Câmbio,202603,33,0.00,48.3,202603
+tcb,TCB - Tipo de Consolidado Bancário,b3S,Cooperativa de Crédito Singulares,202603,737,0.00,9.0,202603
+tcb,TCB - Tipo de Consolidado Bancário,b3C,Central e Confederação de Cooperativas de Crédito,202603,29,0.00,0.8,202603
+tcb,TCB - Tipo de Consolidado Bancário,b4,Banco de Desenvolvimento,202603,4,0.65,407.4,202603
+tcb,TCB - Tipo de Consolidado Bancário,n1,Não Bancário de Crédito,202603,246,0.00,147.6,202603
+tcb,TCB - Tipo de Consolidado Bancário,n2,Não Bancário de Mercado de Capitais,202603,127,0.00,0.0,202603
+tcb,TCB - Tipo de Consolidado Bancário,n4,Instituições de Pagamento,202603,131,0.00,0.4,202603
+controle,TC - Tipo de Controle,1,Público,202603,,,,202603
+controle,TC - Tipo de Controle,2,Privado Nacional,202603,,,,202603
+controle,TC - Tipo de Controle,3,Privado com Controle Estrangeiro,202603,,,,202603
+consolidacao,TD - Tipo de Consolidação,C,Conglomerado,202603,,,,202603
+consolidacao,TD - Tipo de Consolidação,I,Instituição independente,202603,,,,202603
+segmento_sr,SR - Segmento Resolução nº 4.553/2017,S1,Segmento 1,202603,6,211.03,1343.4,202603
+segmento_sr,SR - Segmento Resolução nº 4.553/2017,S2,Segmento 2,202603,10,18.15,407.4,202603
+segmento_sr,SR - Segmento Resolução nº 4.553/2017,S3,Segmento 3,202603,65,0.01,94.6,202603
+segmento_sr,SR - Segmento Resolução nº 4.553/2017,S4,Segmento 4,202603,373,0.00,12.8,202603
+segmento_sr,SR - Segmento Resolução nº 4.553/2017,S5,Segmento 5,202603,940,0.00,8.3,202603
