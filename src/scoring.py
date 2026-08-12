@@ -94,15 +94,55 @@ def calcula_scores(df: pd.DataFrame, grupo_pares: str | None = "tcb",
     return d
 
 
+LIMIAR_AGENDA = 0.65      # score a partir do qual a instituicao entra na agenda
+COBERTURA_GRANDES = 0.80  # fatia da carteira que define o grupo das sistemicamente relevantes
+
+
 def agenda(df: pd.DataFrame, data_base: int, minimo_carteira: float = 1e9,
-           n: int = 25) -> pd.DataFrame:
-    """Lista priorizada do trimestre, restrita a instituicoes com carteira relevante.
+           limiar: float = LIMIAR_AGENDA, n_max: int = 60) -> pd.DataFrame:
+    """LISTA 1 -- atipicas dentro do grupo de pares.
+
+    Entra quem tiver score acima do LIMIAR, e nao as N primeiras: com top-N o corte e
+    arbitrario (a 25a e a 26a chegaram a diferir em 0,002 de score) e a lista nao diz
+    que criterio a produziu.
 
     O corte por tamanho existe porque percentil nao distingue relevancia: uma
     cooperativa com R$ 3 milhoes de carteira pode liderar todos os percentis de
     crescimento sem qualquer consequencia sistemica.
+
+    ATENCAO -- esta lista mede ATIPICIDADE, nao relevancia sistemica. Um score alto
+    aqui significa "muito fora do padrao do seu grupo", o que nao implica impacto no
+    sistema. Para isso existe `agenda_grandes`.
     """
     u = df[(df["data_base"] == data_base)
-           & (df["carteira_credito_real"] >= minimo_carteira)].copy()
-    u = u.sort_values("score_final", ascending=False).head(n)
+           & (df["carteira_credito_real"] >= minimo_carteira)
+           & (df["score_final"] >= limiar)].copy()
+    u = u.sort_values("score_final", ascending=False).head(n_max)
+    u["posicao"] = range(1, len(u) + 1)
+    return u
+
+
+def agenda_grandes(df: pd.DataFrame, data_base: int,
+                   cobertura: float = COBERTURA_GRANDES) -> pd.DataFrame:
+    """LISTA 2 -- as sistemicamente relevantes, ordenadas pelo sinal.
+
+    Grupo definido por COBERTURA DE CARTEIRA: as maiores instituicoes que, somadas,
+    respondem por `cobertura` da carteira do recorte. Todas elas estao na alcada da
+    supervisao por construcao -- aqui o score nao decide QUEM entra, decide a ORDEM em
+    que se olha.
+
+    Isso corrige a distorcao da lista 1, em que os cinco maiores bancos do pais
+    apareciam entre a 548a e a 1046a posicao e ficavam fora da agenda.
+    """
+    u = df[df["data_base"] == data_base].copy()
+    u = u[u["carteira_credito_real"] > 0].sort_values(
+        "carteira_credito_real", ascending=False)
+    if u.empty:
+        return u
+    share = u["carteira_credito_real"] / u["carteira_credito_real"].sum()
+    u["share_acumulado"] = share.cumsum()
+    # inclui a instituicao que faz a soma cruzar o limite
+    corte = (u["share_acumulado"] < cobertura).sum() + 1
+    u = u.head(corte).sort_values("score_final", ascending=False)
+    u["posicao"] = range(1, len(u) + 1)
     return u

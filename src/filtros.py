@@ -171,6 +171,21 @@ def barra_lateral(ind: pd.DataFrame, pesos_padrao: dict, eixos: list[str]) -> di
     with sb.expander("O que significam as siglas?"):
         st.markdown(glossario_html(gloss), unsafe_allow_html=True)
 
+    # ---------------------------------------------------------------- agenda
+    sb.markdown("<div class='filtro-titulo'>Critério da agenda</div>",
+                unsafe_allow_html=True)
+    limiar = sb.slider(
+        "Score mínimo para entrar", 0.30, 0.95, 0.65, 0.01,
+        help="Entra na agenda quem tiver score acima deste valor. Um limiar explícito é "
+             "mais defensável que um corte em 'as N primeiras': com top-N, a última "
+             "incluída e a primeira excluída podem diferir em 0,002 de score.")
+    cobertura = sb.slider(
+        "Cobertura da lista de grandes", 0.50, 0.95, 0.80, 0.05,
+        format="%.0f%%",
+        help="A segunda lista reúne as maiores instituições que, somadas, respondem por "
+             "esta fatia da carteira do recorte. Todas estão na alçada da supervisão por "
+             "tamanho; o score define a ordem em que se olha.")
+
     # ---------------------------------------------------------------- pesos
     sb.markdown("<div class='filtro-titulo'>Pesos do score</div>", unsafe_allow_html=True)
     sb.markdown(
@@ -186,4 +201,5 @@ def barra_lateral(ind: pd.DataFrame, pesos_padrao: dict, eixos: list[str]) -> di
         sb.warning("Todos os pesos em zero — usando os padrões.")
 
     return {"dt_sel": dt_sel, "tcb_sel": tcb_sel, "seg_sel": seg_sel,
-            "porte_min": porte_min, "pesos": pesos, "perfil": perfil}
+            "porte_min": porte_min, "pesos": pesos, "perfil": perfil,
+            "limiar": limiar, "cobertura": cobertura}

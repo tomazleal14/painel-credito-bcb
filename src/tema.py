@@ -147,6 +147,7 @@ def sparkline(valores, largura: int = 168, altura: int = 34,
 TAMANHOS = {
     "titulo_pagina": 30,
     "subtitulo": 15,
+    "assinatura": 12,
     "texto_base": 13.5,
     "cartao_valor": 34,
     "cartao_texto": 12.5,
@@ -196,7 +197,7 @@ def _css(t: dict) -> str:
                    font-weight: 650; margin: 0 0 6px 0; color: {TEMA['texto']}; }}
   .cabecalho .sub {{ font-size: {t["subtitulo"]}px; line-height: 1.55; color: {TEMA['texto_2']};
                      max-width: 78ch; }}
-  .cabecalho .assinatura {{ font-size: 12px; color: {TEMA['texto_3']}; margin-top: 8px;
+  .cabecalho .assinatura {{ font-size: {t["assinatura"]}px; color: {TEMA['texto_3']}; margin-top: 8px;
                             letter-spacing: 0.03em; }}
 
   /* ---------- bloco Leitura / Consequencia ---------- */

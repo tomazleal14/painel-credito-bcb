@@ -23,7 +23,7 @@ import streamlit as st
 import cartoes
 import filtros
 import textos as _textos
-from scoring import EIXOS, PESOS_PADRAO, agenda, calcula_scores
+from scoring import EIXOS, PESOS_PADRAO, agenda, agenda_grandes, calcula_scores
 from tema import (ALTURA_GRAFICO, ALTURA_GRAFICO_GRANDE, ICONE_SEMAFORO,
                   SEMAFORO, TEMA, layout_base, monta_css)
 
@@ -109,6 +109,7 @@ trimestres = sorted(ind["data_base"].unique())
 f = filtros.barra_lateral(ind, PESOS_PADRAO, EIXOS)
 dt_sel, tcb_sel = f["dt_sel"], f["tcb_sel"]
 seg_sel, porte_min, pesos = f["seg_sel"], f["porte_min"], f["pesos"]
+limiar, cobertura = f["limiar"], f["cobertura"]
 
 # aplica filtros
 base = ind[ind["tcb"].isin(tcb_sel) & ind["segmento_sr"].isin(seg_sel)].copy()
@@ -156,7 +157,8 @@ aba0, aba1, aba2, aba3, aba4 = st.tabs([
 
 # ================================================================== VISÃO GERAL
 with aba0:
-    lista = agenda(scored, dt_sel, minimo_carteira=porte_min, n=25)
+    lista = agenda(scored, dt_sel, minimo_carteira=porte_min, limiar=limiar)
+    lista_grandes = agenda_grandes(scored, dt_sel, cobertura=cobertura)
 
     # o `help` de cada métrica decifra a sigla sem exigir que se saia da tela
     c = st.columns(5)
@@ -243,68 +245,134 @@ with aba0:
         f"<b>Consequência.</b> {T.txt('agenda.consequencia')}</div>",
         unsafe_allow_html=True)
 
-    if lista.empty:
-        st.warning("Nenhuma instituição atende ao corte de carteira. Reduza o corte na barra lateral.")
-    else:
-        linhas = []
-        for r in lista.itertuples():
-            linhas.append({
-                "#": int(r.prioridade) if pd.notna(r.prioridade) else None,
-                "Instituição": r.instituicao,
-                "TCB": r.tcb,
-                "Seg.": r.segmento_sr,
-                "Carteira (R$ bi)": round(r.carteira_credito_real / 1e9, 1),
-                "Cresc. real a.a.": (f"{r.p1_1_cresc_real_aa*100:.1f}%"
-                                     if pd.notna(r.p1_1_cresc_real_aa) else "—"),
-                "Inadimpl.": (f"{r.p3_1_inadimplencia*100:.2f}%"
-                              if pd.notna(r.p3_1_inadimplencia) else "—"),
-                "Cobertura": (f"{r.p3_2_cobertura*100:.0f}%"
-                              if pd.notna(r.p3_2_cobertura) else "—"),
-                "Basileia": (f"{r.indice_basileia*100:.2f}%"
-                             if pd.notna(r.indice_basileia) else "—"),
-                "Cresc.": ICONE_SEMAFORO[r.sem_crescimento],
-                "Conc.": ICONE_SEMAFORO[r.sem_concentracao],
-                "Deter.": ICONE_SEMAFORO[r.sem_deterioracao],
-                "Score": round(r.score_final, 3) if pd.notna(r.score_final) else None,
-            })
-        tab = pd.DataFrame(linhas)
+    # ---- duas listas, porque sao duas perguntas diferentes ----
+    # O score mede ATIPICIDADE dentro do grupo de pares. Isso nao e o mesmo que
+    # relevancia sistemica: com uma lista so, os cinco maiores bancos do pais ficavam
+    # entre a 548a e a 1046a posicao e nao entravam na agenda.
+    def monta_tabela(dados: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame([{
+            "#": int(r.posicao),
+            "Instituição": r.instituicao,
+            "TCB": r.tcb,
+            "Seg.": r.segmento_sr,
+            "Carteira": r.carteira_credito_real / 1e9,
+            "Cresc. real a.a.": r.p1_1_cresc_real_aa,
+            "Inadimpl.": r.p3_1_inadimplencia,
+            "Cobertura": r.p3_2_cobertura,
+            "Basileia": r.indice_basileia,
+            "Cresc.": ICONE_SEMAFORO[r.sem_crescimento],
+            "Conc.": ICONE_SEMAFORO[r.sem_concentracao],
+            "Deter.": ICONE_SEMAFORO[r.sem_deterioracao],
+            "Score": r.score_final,
+        } for r in dados.itertuples()])
 
-        def cor_sem(col_score):
-            def _f(s):
-                cores = []
-                for v in lista[col_score]:
-                    cores.append(f"color:{SEMAFORO[v]};font-size:16px")
-                return cores
-            return _f
+    # `help` de cada coluna: e onde a variavel e decifrada, sem sair da tabela
+    COLUNAS = {
+        "#": st.column_config.NumberColumn(
+            "#", width="small", format="%d",
+            help="Posição NESTA lista, da mais prioritária para a menos. "
+                 "Não é o ranking geral do sistema."),
+        "Instituição": st.column_config.TextColumn("Instituição", width="large"),
+        "TCB": st.column_config.TextColumn(
+            "TCB", width="small",
+            help="Tipo de Consolidado Bancário — a classificação do BCB por modelo de "
+                 "negócio. O glossário completo está na barra lateral."),
+        "Seg.": st.column_config.TextColumn(
+            "Seg.", width="small",
+            help="Segmento prudencial da Res. 4.553/2017. S1 são as maiores; "
+                 "S5, as de perfil simplificado."),
+        "Carteira": st.column_config.NumberColumn(
+            "Carteira (R$ bi)", format="%.1f",
+            help="Carteira de crédito, em bilhões de reais de 03/2026, deflacionada "
+                 "pelo IPCA (SGS 433)."),
+        "Cresc. real a.a.": st.column_config.NumberColumn(
+            "Cresc. real a.a.", format="percent",
+            help="Crescimento da carteira em 12 meses, já descontada a inflação. "
+                 "É a variável-mestra de P1: acima de 15% a.a. real é o limiar de "
+                 "crescimento acelerado adotado aqui."),
+        "Inadimpl.": st.column_config.NumberColumn(
+            "Inadimpl.", format="percent",
+            help="Carteira em atraso acima de 90 dias, sobre a carteira total. "
+                 "Cuidado com o efeito denominador: carteira que cresce rápido dilui "
+                 "este índice e esconde perda futura."),
+        "Cobertura": st.column_config.NumberColumn(
+            "Cobertura", format="percent",
+            help="Provisão dividida pela carteira em atraso. 100% cobre integralmente "
+                 "o atraso; abaixo disso há perda ainda não reconhecida no balanço."),
+        "Basileia": st.column_config.NumberColumn(
+            "Basileia", format="percent",
+            help="Índice de Basileia: capital sobre ativos ponderados pelo risco. "
+                 "O mínimo de referência é 10,5% (8% de requisito mais 2,5% de "
+                 "conservação)."),
+        "Cresc.": st.column_config.TextColumn("Cresc.", width="small",
+                                              help="Semáforo do eixo Crescimento."),
+        "Conc.": st.column_config.TextColumn("Conc.", width="small",
+                                             help="Semáforo do eixo Concentração."),
+        "Deter.": st.column_config.TextColumn("Deter.", width="small",
+                                              help="Semáforo do eixo Deterioração."),
+        "Score": st.column_config.ProgressColumn(
+            "Score", format="%.3f", min_value=0.0, max_value=1.0,
+            help="Score composto de posição relativa, de 0 a 1: média dos percentis dos "
+                 "indicadores dentro do grupo de pares (mesmo TCB), ponderada pelos "
+                 "pesos da barra lateral. 0,50 = mediana do grupo."),
+    }
 
-        def cor_score(s):
-            # gradiente proprio: evita a dependencia de matplotlib exigida por
-            # Styler.background_gradient (peso desnecessario no Streamlit Cloud)
-            v = pd.to_numeric(s, errors="coerce")
-            lo, hi = v.min(), v.max()
-            norm = (v - lo) / (hi - lo) if pd.notna(hi) and hi > lo else v * 0
-            return [f"background-color: rgba(179,38,30,{0.06 + 0.42*n:.3f}); font-weight:600"
-                    if pd.notna(n) else "" for n in norm]
+    t1, t2 = st.tabs([f"Atípicas no grupo de pares ({len(lista)})",
+                      f"Grandes com sinal ({len(lista_grandes)})"])
 
-        estilo = (tab.style
-                  .apply(cor_sem("sem_crescimento"), subset=["Cresc."])
-                  .apply(cor_sem("sem_concentracao"), subset=["Conc."])
-                  .apply(cor_sem("sem_deterioracao"), subset=["Deter."])
-                  .apply(cor_score, subset=["Score"]))
-        st.dataframe(estilo, width='stretch', hide_index=True, height=560)
-
+    with t1:
         st.markdown(
-            f"<div class='rodape-fonte'>"
-            f"{sem_html('alto')} risco alto (percentil ≥ 75 no grupo de pares) &nbsp;·&nbsp; "
-            f"{sem_html('medio')} atenção (≥ 50) &nbsp;·&nbsp; "
-            f"{sem_html('baixo')} baixo (&lt; 50) &nbsp;·&nbsp; "
-            f"{sem_html('sem')} sem dado suficiente</div>",
+            f"<div class='aviso'>Entram as instituições com <b>score ≥ {limiar:.2f}</b> "
+            f"e carteira ≥ {filtros.fmt_reais(porte_min)}: <b>{len(lista)}</b> de "
+            f"{len(univ)} no recorte. Esta lista mede <b>atipicidade dentro do grupo de "
+            f"pares</b> — quem está muito fora do padrão do próprio tipo de instituição. "
+            f"Não mede relevância sistêmica: as {len(lista)} somam "
+            f"{lista['carteira_credito_real'].sum()/univ['carteira_credito_real'].sum()*100:.1f}% "
+            f"da carteira do recorte.</div>",
             unsafe_allow_html=True)
+        if lista.empty:
+            st.warning(f"Nenhuma instituição atinge score {limiar:.2f}. "
+                       "Baixe o limiar na barra lateral.")
+        else:
+            st.dataframe(monta_tabela(lista), width='stretch', hide_index=True,
+                         height=min(560, 60 + 35 * len(lista)), column_config=COLUNAS)
 
-        st.download_button(
-            "Baixar a agenda em CSV",
-            tab.to_csv(index=False).encode("utf-8-sig"),
-            file_name=f"agenda_supervisao_{dt_sel}.csv", mime="text/csv")
+    with t2:
+        st.markdown(
+            f"<div class='aviso'>As maiores instituições que somadas respondem por "
+            f"<b>{cobertura:.0%}</b> da carteira do recorte — <b>{len(lista_grandes)}</b> "
+            f"instituições. Todas estão na alçada da supervisão por tamanho; aqui o score "
+            f"não decide quem entra, decide <b>a ordem em que se olha</b>. É a correção da "
+            f"distorção da primeira lista, em que os cinco maiores bancos do país ficavam "
+            f"de fora da agenda.</div>",
+            unsafe_allow_html=True)
+        if lista_grandes.empty:
+            st.warning("Sem dados de carteira no recorte.")
+        else:
+            st.dataframe(monta_tabela(lista_grandes), width='stretch', hide_index=True,
+                         height=min(560, 60 + 35 * len(lista_grandes)),
+                         column_config=COLUNAS)
+
+    st.markdown(
+        f"<div class='rodape-fonte'>"
+        f"{sem_html('alto')} risco alto (percentil ≥ 75 no grupo de pares) &nbsp;·&nbsp; "
+        f"{sem_html('medio')} atenção (≥ 50) &nbsp;·&nbsp; "
+        f"{sem_html('baixo')} baixo (&lt; 50) &nbsp;·&nbsp; "
+        f"{sem_html('sem')} sem dado suficiente &nbsp;·&nbsp; "
+        f"passe o mouse no cabeçalho de cada coluna para ver o que ela mede</div>",
+        unsafe_allow_html=True)
+
+    c1, c2 = st.columns(2)
+    if not lista.empty:
+        c1.download_button(
+            "Baixar lista de atípicas (CSV)",
+            monta_tabela(lista).to_csv(index=False).encode("utf-8-sig"),
+            file_name=f"agenda_atipicas_{dt_sel}.csv", mime="text/csv")
+    if not lista_grandes.empty:
+        c2.download_button(
+            "Baixar lista de grandes (CSV)",
+            monta_tabela(lista_grandes).to_csv(index=False).encode("utf-8-sig"),
+            file_name=f"agenda_grandes_{dt_sel}.csv", mime="text/csv")
 
     fonte(f"BCB/IF.data, data-base {fmt_trimestre(dt_sel)}. Valores reais em R$ de "
           f"{fmt_trimestre(BASE_DEFL)} (IPCA, SGS 433). Extração em 12/08/2026.")
@@ -759,7 +827,8 @@ with aba4:
     opcoes = (univ.sort_values("carteira_credito_real", ascending=False)
                   [["cod_inst", "instituicao"]].drop_duplicates("cod_inst"))
     mapa = dict(zip(opcoes["cod_inst"], opcoes["instituicao"]))
-    padrao = agenda(scored, dt_sel, minimo_carteira=porte_min, n=3)["cod_inst"].tolist()
+    # pre-seleciona as tres primeiras da agenda de atipicas do trimestre
+    padrao = lista["cod_inst"].head(3).tolist() if not lista.empty else []
     padrao = [c for c in padrao if c in mapa][:3]
 
     sel = st.multiselect("Instituições (2 a 4)", list(mapa), default=padrao,

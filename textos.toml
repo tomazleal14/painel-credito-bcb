@@ -23,6 +23,7 @@
 [aparencia]
 titulo_pagina   = 30    # o titulo grande no topo
 subtitulo       = 15    # a pergunta decisoria sob o titulo
+assinatura      = 12    # a linha de autoria, sob o subtitulo
 texto_base      = 13.5  # blocos de Leitura / Consequencia
 cartao_valor    = 34    # o numero grande dos cartoes
 cartao_texto    = 12.5  # descricao dentro dos cartoes
@@ -46,13 +47,19 @@ p3 = "P3 — Quem mostra deterioração incompatível com o ritmo de crescimento
 [agenda]
 titulo = "Agenda de supervisão"
 leitura = """
-Lista priorizada pelo score composto. Cada instituição traz três luzes: crescimento, \
-concentração e deterioração. A luz é a posição da instituição <i>dentro do seu grupo de \
-pares</i> (mesmo TCB), não um valor absoluto.
+Duas listas, porque são **duas perguntas diferentes**. *Atípicas no grupo de pares* reúne \
+quem está muito fora do padrão do próprio tipo de instituição — entra por score acima do \
+limiar. *Grandes com sinal* reúne as instituições que respondem pela maior parte da \
+carteira: todas já estão na alçada da supervisão por tamanho, e ali o score define apenas \
+a ordem em que se olha. Cada linha traz três luzes: crescimento, concentração e \
+deterioração, sempre relativas ao grupo de pares.
 """
 consequencia = """
-É esta a lista que entra na agenda do próximo ciclo. A ordem muda se você alterar os pesos \
-na barra lateral — e mudar o critério é parte da decisão do supervisor.
+Uma lista sozinha engana. Só com atipicidade, os cinco maiores bancos do país ficariam de \
+fora da agenda — eles são medianos entre seus pares, mas qualquer deterioração ali é evento \
+sistêmico. Só com tamanho, perde-se a cooperativa que cresce 165% ao ano. O limiar e a \
+cobertura são ajustáveis na barra lateral, e mudar o critério é parte da decisão do \
+supervisor.
 """
 
 [comparador]
@@ -424,6 +431,13 @@ separados e **não** traça uma linha contínua entre eles.
 **4. Não afirma irregularidade, insolvência nem culpa.** O painel sinaliza **candidatos a exame**
 segundo critérios públicos e explícitos. Crescer rápido não é infração; provisão baixa pode
 refletir carteira legitimamente melhor. A conclusão é uma agenda de verificação, não um veredito.
+
+**4b. O score não mede relevância sistêmica.** Ele mede **atipicidade dentro do grupo de pares**:
+um score alto significa "muito fora do padrão do seu próprio tipo de instituição", não "importante
+para o sistema". As duas coisas não coincidem — com uma lista única por score, os cinco maiores
+bancos do país apareciam entre a 548ª e a 1046ª posição, e a agenda cobria 1% da carteira. Daí as
+duas listas. Um score 0,75 num grupo de 154 cooperativas e um 0,75 num grupo de 66 bancos são o
+quartil superior de populações diferentes e **não são diretamente comparáveis** entre si.
 
 **5. Não enxerga o que não está no balanço.** Cessões de crédito, coobrigação, exposições fora
 do balanço, risco de mercado e liquidez ficam fora do recorte destes relatórios.

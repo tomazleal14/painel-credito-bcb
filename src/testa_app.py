@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import pandas as pd
 
 from comum import DATA_PROC
-from scoring import agenda, calcula_scores
+from scoring import agenda, agenda_grandes, calcula_scores
 
 # (rotulo, colunas exigidas pelo grafico)
 GRAFICOS = {
@@ -40,7 +40,7 @@ def main() -> int:
     scored = calcula_scores(ind, grupo_pares="tcb")
 
     rotulos = list(GRAFICOS)
-    print(f"{'data-base':>10s} {'IFs':>5s} {'agenda':>7s} " +
+    print(f"{'data-base':>10s} {'IFs':>5s} {'atip.':>6s} {'grand.':>7s} " +
           " ".join(f"{r.split()[0]:>6s}" for r in rotulos))
 
     falhas = 0
@@ -48,9 +48,11 @@ def main() -> int:
         u = scored[(scored["data_base"] == dt)
                    & (scored["carteira_credito_real"] >= CORTE)]
         try:
-            ag = agenda(scored, dt, minimo_carteira=CORTE, n=25)
+            # as duas listas da agenda precisam sobreviver a todo trimestre
+            ag = agenda(scored, dt, minimo_carteira=CORTE)
+            gr = agenda_grandes(scored, dt)
         except Exception as e:  # noqa: BLE001
-            print(f"{dt:>10d}  ERRO na agenda: {e}")
+            print(f"{dt:>10d}  ERRO na agenda: {type(e).__name__}: {e}")
             falhas += 1
             continue
 
@@ -59,7 +61,7 @@ def main() -> int:
             cols = [c for c in GRAFICOS[rot] if c in u.columns]
             n = len(u.dropna(subset=cols)) if cols else 0
             contagens.append(n)
-        print(f"{dt:>10d} {len(u):>5d} {len(ag):>7d} " +
+        print(f"{dt:>10d} {len(u):>5d} {len(ag):>6d} {len(gr):>7d} " +
               " ".join(f"{n:>6d}" for n in contagens))
 
     print("\nlegenda das colunas:")
