@@ -209,6 +209,12 @@ def _css(t: dict) -> str:
                 border-bottom: 1px solid {TEMA['borda']}; }}
   .bloco-lrc b {{ color: {TEMA['acento_ink']}; font-weight: 570; }}
 
+  /* texto explicativo dentro de um expander: sem a moldura do bloco-lrc, que
+     duplicaria a borda que o proprio expander ja desenha */
+  .explicacao {{ font-size: {t["texto_base"]}px; line-height: 1.6;
+                 color: {TEMA['texto_2']}; }}
+  .explicacao b {{ color: {TEMA['acento_ink']}; font-weight: 570; }}
+
   .aviso {{ border-left: 3px solid {TEMA['risco_medio']}; background: {TEMA['medio_soft']};
             padding: 10px 14px; margin: 10px 0; font-size: 12.5px; line-height: 1.55;
             border-radius: 0 3px 3px 0; color: {TEMA['texto_2']}; }}

@@ -91,6 +91,9 @@ descricao = "Qualidade da carteira frente ao ritmo de crescimento e à folga de 
 [sintese]
 titulo = "Os três eixos, e quanto da carteira cada um coloca em risco"
 
+# rotulo do bloco retratil que explica o calculo
+rotulo_expander = "Como ler estes números — o cálculo passo a passo"
+
 o_que_e_o_numero = """
 O número grande é a **fatia da carteira do recorte que está em instituições sinalizadas
 como risco alto naquele eixo**. Se aparece 7,2% em Crescimento, significa: somando a

@@ -206,14 +206,17 @@ with aba0:
                     n_percentis=len(cartoes.INDICADORES_POR_EIXO.get(eixo, []))),
                 unsafe_allow_html=True)
 
-    # ---- o que o numero grande significa, e a sintese dos achados ----
-    st.markdown(
-        f"<div class='bloco-lrc'><b>O que é o número.</b> {T.txt('sintese.o_que_e_o_numero')}"
-        f"<br><br><b>Como ler.</b> {T.txt('sintese.como_ler')}"
-        f"<br><br><b>Quem é marcado como risco alto.</b> "
-        f"{T.txt('sintese.por_que_decompor')}"
-        f"<br><br><b>Os componentes.</b> {T.txt('sintese.os_componentes')}</div>",
-        unsafe_allow_html=True)
+    # ---- o que o numero grande significa (retratil, como o glossario) ----
+    with st.expander(T.bruto("sintese.rotulo_expander",
+                             "Como ler estes números — o cálculo passo a passo")):
+        st.markdown(
+            f"<div class='explicacao'>"
+            f"<b>O que é o número.</b> {T.txt('sintese.o_que_e_o_numero')}"
+            f"<br><br><b>Como ler.</b> {T.txt('sintese.como_ler')}"
+            f"<br><br><b>Quem é marcado como risco alto.</b> "
+            f"{T.txt('sintese.por_que_decompor')}"
+            f"<br><br><b>Os componentes.</b> {T.txt('sintese.os_componentes')}</div>",
+            unsafe_allow_html=True)
 
     # sintese factual do trimestre, calculada -- nao escrita a mao.
     # Ordena a pressao por CARTEIRA EXPOSTA, nao por contagem de instituicoes: 54
