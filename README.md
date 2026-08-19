@@ -102,8 +102,27 @@ Duas peças, ambas isoladas do resto:
 | [`.streamlit/config.toml`](.streamlit/config.toml) | cores base que o próprio Streamlit usa |
 
 As duas precisam ficar coerentes: `config.toml` espelha as cores de `tema.py`.
-No `TEMA`, o marrom (`acento`) é cor de **estrutura**; vermelho, âmbar e verde são
-reservados **só para risco**; e `marca` é a cor das marcas de dados nos gráficos.
+
+A paleta é **inspirada** na comunicação do Banco Central — não idêntica, por ser trabalho
+acadêmico sem vínculo oficial. As cores foram extraídas do próprio site do BCB pela
+**frequência de uso**, e não das variáveis CSS declaradas lá, que são apenas o Bootstrap
+padrão e não representam a identidade:
+
+| cor | ocorrências no site | papel aqui |
+|---|---|---|
+| `#025C75` / `#005C7A` | 243 + 192 | `acento` — estrutura: títulos, réguas, bordas |
+| `#3298D5` | 185 | `marca` — marcas de dados nos gráficos |
+| `#EDD297` | 604 | `areia` — só o filete do cabeçalho |
+| `#606060` | 638 | `texto_3` — texto secundário |
+
+Três regras sobrevivem a qualquer troca de paleta:
+
+1. **Vermelho, âmbar e verde são exclusivos de risco.** Nada mais os usa, para o semáforo
+   saltar aos olhos.
+2. **O teal é estrutura, nunca dado.** As marcas de gráfico usam o azul claro, distinto
+   dele.
+3. **O areia é cromo de marca**, não informação — aparece só no cabeçalho, e nessa dose
+   não se confunde com o âmbar de risco (`#8A5A0B`, bem mais escuro).
 
 ## Reproduzir os dados do zero
 

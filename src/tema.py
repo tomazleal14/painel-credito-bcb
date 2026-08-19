@@ -2,57 +2,67 @@
 tema.py -- ARQUIVO DE TEMA. Isolado de proposito: para mudar a aparencia do painel,
 edite so este arquivo (e .streamlit/config.toml, que espelha as cores base).
 
-Identidade: editorial "papel", modo claro.
-  - fundo creme e superficies quentes, no lugar do branco puro -- reduz o brilho e
-    da o ar de relatorio impresso;
-  - acento marrom para a estrutura (titulos, reguas, links);
-  - vermelho / ambar / verde reservados EXCLUSIVAMENTE a sinalizacao de risco, para
-    que o semaforo salte aos olhos e nada mais compita com ele;
-  - escala tipografica e de espacamento fixas, para densidade consistente.
+Identidade: institucional, INSPIRADA na comunicacao do Banco Central -- nao identica,
+por ser trabalho academico sem vinculo oficial.
+
+As cores estruturais foram extraidas do proprio site do BCB (www.bcb.gov.br) pela
+FREQUENCIA DE USO, e nao das variaveis CSS declaradas, que la sao apenas o Bootstrap
+padrao e nao representam a identidade:
+    #005C7A / #025C75  teal profundo -- 243 + 192 ocorrencias, cor dominante
+    #137A97            teal medio    -- 137
+    #3298D5            azul claro    -- 185
+    #EDD297            areia/dourado -- 604, o acento quente da marca
+    #606060            cinza de texto -- 638
+
+Regras que sobrevivem a troca de paleta:
+  - vermelho / ambar / verde seguem EXCLUSIVOS da sinalizacao de risco;
+  - o teal profundo e cor de ESTRUTURA (titulos, reguas, bordas), nunca de dado;
+  - as marcas de dado usam o azul claro do BCB, distinto do teal estrutural;
+  - o areia aparece so no filete do cabecalho -- e cromo de marca, nao informacao,
+    e nessa dose nao se confunde com o ambar de risco (#925D0B, bem mais escuro).
 """
 from __future__ import annotations
 
 # ---------------------------------------------------------------- cores
 TEMA = {
-    # superficies
-    "fundo":        "#F3EFE5",   # papel
-    "surface":      "#FAF8F2",   # cartao
-    "surface_2":    "#EFEADD",
-    "surface_3":    "#E7E1D1",
-    "borda":        "#D8D2C6",
-    "borda_forte":  "#C8C0B0",
+    # superficies -- neutro frio levemente azulado, na linha do BCB
+    "fundo":        "#F1F4F5",
+    "surface":      "#FFFFFF",   # cartao
+    "surface_2":    "#E8EDEF",
+    "surface_3":    "#DCE3E6",
+    "borda":        "#D3DBDF",
+    "borda_forte":  "#B7C3C8",
 
     # texto (tres niveis)
-    "texto":        "#1A1D21",
-    "texto_2":      "#3D4147",
-    "texto_3":      "#636562",
+    "texto":        "#14252B",
+    "texto_2":      "#3A4A51",
+    "texto_3":      "#606060",   # o cinza de texto do proprio BCB
 
     # estrutura
-    "acento":       "#8F6644",
-    "acento_ink":   "#7C5638",
-    "acento_soft":  "#EDE3D3",
+    "acento":       "#025C75",   # teal profundo do BCB
+    "acento_ink":   "#01414F",
+    "acento_soft":  "#DCE8ED",
+    "areia":        "#EDD297",   # acento quente da marca, so no cabecalho
 
     # sinalizacao de risco (usar SO para risco)
-    "risco_alto":   "#B32626",
-    "risco_medio":  "#925D0B",
-    "risco_baixo":  "#177245",
-    "alto_soft":    "#F6E6E0",
-    "medio_soft":   "#F4EAD3",
-    "baixo_soft":   "#E3EFE4",
-    "neutro":       "#6E6F69",
+    "risco_alto":   "#B3261E",
+    "risco_medio":  "#8A5A0B",
+    "risco_baixo":  "#166B43",
+    "alto_soft":    "#F7E4E1",
+    "medio_soft":   "#F6EBD6",
+    "baixo_soft":   "#E0EFE6",
+    "neutro":       "#7A8A90",
 
     # graficos
-    # O marrom do acento e cor de ESTRUTURA (titulos, reguas, bordas). As marcas de
-    # dados usam teal, para nao competir com o marrom nem com o vermelho/ambar do risco.
-    "marca":        "#0E707F",   # cor padrao de ponto/barra/linha
-    "marca_clara":  "#5FA3AC",
-    "grid":         "#E9E3D4",
-    "eixo":         "#8A867A",
-    "referencia":   "#6E6F69",
-    "serie_1":      "#1A1D21",
-    "serie_2":      "#0E707F",
-    "serie_3":      "#925D0B",
-    "sequencial":   ["#F0E9DC", "#DCCDB6", "#C4AA8A", "#A98764", "#8F6644", "#6E4B31"],
+    "marca":        "#3298D5",   # azul claro do BCB: distinto do teal estrutural
+    "marca_clara":  "#8FC4E5",
+    "grid":         "#E4EAEC",
+    "eixo":         "#8DA5AC",   # cinza-teal do BCB
+    "referencia":   "#7A8A90",
+    "serie_1":      "#14252B",
+    "serie_2":      "#025C75",
+    "serie_3":      "#79939C",   # cinza-teal: terceira serie sem invadir o ambar de risco
+    "sequencial":   ["#E8EFF2", "#C3D7DF", "#95BCCA", "#5E9CB0", "#2A7A94", "#025C75"],
 }
 
 SEMAFORO = {
@@ -190,11 +200,14 @@ def _css(t: dict) -> str:
   [data-testid="stIconMaterial"], .material-icons, .material-symbols-rounded,
   span[translate="no"] {{ font-family: "Material Symbols Rounded", "Material Icons" !important; }}
 
-  /* ---------- cabecalho ---------- */
-  .cabecalho {{ border-bottom: 2px solid {TEMA['acento']}; padding-bottom: 12px;
-                margin-bottom: 4px; }}
+  /* ---------- cabecalho ----------
+     filete duplo: teal profundo sobre areia, o par cromatico da comunicacao do BCB.
+     E cromo de marca; nenhum dado usa o areia. */
+  .cabecalho {{ border-bottom: 3px solid {TEMA['areia']};
+                box-shadow: inset 0 -6px 0 -3px {TEMA['acento']};
+                padding-bottom: 12px; margin-bottom: 4px; }}
   .cabecalho h1 {{ font-size: {t["titulo_pagina"]}px; line-height: 1.12; letter-spacing: -0.018em;
-                   font-weight: 650; margin: 0 0 6px 0; color: {TEMA['texto']}; }}
+                   font-weight: 650; margin: 0 0 6px 0; color: {TEMA['acento']}; }}
   .cabecalho .sub {{ font-size: {t["subtitulo"]}px; line-height: 1.55; color: {TEMA['texto_2']};
                      max-width: 78ch; }}
   .cabecalho .assinatura {{ font-size: {t["assinatura"]}px; color: {TEMA['texto_3']}; margin-top: 8px;

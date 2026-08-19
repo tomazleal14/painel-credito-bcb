@@ -1,11 +1,15 @@
 # Tema do Streamlit -- espelha as cores base de src/tema.py.
-# Para mudar a aparencia, edite ESTE arquivo e src/tema.py.
+# Para mudar a aparencia, edite ESTE arquivo e src/tema.py, mantendo os dois coerentes.
+#
+# Paleta inspirada na comunicacao do Banco Central (extraida do proprio site pela
+# frequencia de uso): teal profundo #025C75 como cor estrutural, neutros frios nas
+# superficies. Vermelho/ambar/verde ficam reservados a sinalizacao de risco no painel.
 [theme]
 base = "light"
-primaryColor = "#8F6644"
-backgroundColor = "#F3EFE5"
-secondaryBackgroundColor = "#FAF8F2"
-textColor = "#1A1D21"
+primaryColor = "#025C75"
+backgroundColor = "#F1F4F5"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#14252B"
 font = "sans serif"
 
 [server]
