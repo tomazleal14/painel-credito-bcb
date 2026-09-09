@@ -1,24 +1,24 @@
-# Nota de verificação — P1 · Credit gap da instituição
+# Nota de verificação — P1 · Credit gap
 
 `p1_2_credit_gap`
 
 | campo | conteúdo |
 |---|---|
 | Pergunta | **P1** |
-| Fonte primária | IF.data · Resumo |
-| Campos de origem | `carteira_credito` |
-| Fórmula | `desvio do log da carteira real frente à tendência HP (lambda=1600)` |
-| Referência de comparação | Própria tendência; +1 desvio-padrão do gap |
+| Fonte primária | IF.data · Resumo · Carteira de Crédito |
+| Campos de origem |  |
+| Fórmula | `ciclo do filtro Hodrick-Prescott (λ=1600) sobre ln(carteira real)` |
+| Referência de comparação | exige 12 trimestres de série no mesmo universo |
 | Unidade | razão, % ou p.p. conforme a fórmula acima |
 | Deflator | **Essencial.** IPCA, SGS 433 — o indicador compara períodos, então valores nominais inflariam o resultado. Valores reais em R$ de 03/2026 (ver `00_deflator_ipca.md`). |
 | Recorte | IF.data trimestral por instituição; universo fixado em `00_fontes_confirmadas.md` §2 |
 | Janela | 201903 – 202603 (29 trimestres) |
 | Data de extração (UTC) | 2026-08-12T00:23:41Z |
-| Rastreabilidade do bruto | `data_raw/manifesto_coleta.csv` — 973 arquivos com URL e SHA-256 |
+| Rastreabilidade do bruto | `data_raw/manifesto_coleta.csv` — 974 arquivos com URL e SHA-256 |
 
 ## Contas COSIF de origem
 
-- `carteira_credito` = [31000000]
+- (indicador derivado de razões; ver os campos de origem acima)
 
 ## Cobertura observada (% de linhas com valor)
 

@@ -1,16 +1,16 @@
-# Nota de verificação — P1 · Carteira ÷ capital
+# Nota de verificação — P1 · Crescimento do nº de clientes
 
-`p1_4_cresc_carteira_sobre_capital`
+`p1_9_cresc_clientes_aa`
 
 | campo | conteúdo |
 |---|---|
 | Pergunta | **P1** |
-| Fonte primária | IF.data · Resumo + Informações de Capital (Patrimônio de Referência) |
+| Fonte primária | IF.data · Carteira ativa · Quantidade de clientes com operações ativas |
 | Campos de origem |  |
-| Fórmula | `(1+cresc. da carteira) ÷ (1+cresc. do PR), ambos em 12 meses` |
-| Referência de comparação | PR só existe no tipo 1009, a partir de 2023Q3 |
+| Fórmula | `qtd_clientes(t) / qtd_clientes(t−4) − 1` |
+| Referência de comparação | separa expansão por novos tomadores de expansão por ticket maior |
 | Unidade | razão, % ou p.p. conforme a fórmula acima |
-| Deflator | **Essencial.** IPCA, SGS 433 — o indicador compara períodos, então valores nominais inflariam o resultado. Valores reais em R$ de 03/2026 (ver `00_deflator_ipca.md`). |
+| Deflator | **Não altera o resultado.** É uma razão entre valores da mesma data-base: o fator do IPCA aparece no numerador e no denominador e se cancela. O cálculo usa as colunas `_real` por consistência, mas o número seria idêntico em termos nominais. |
 | Recorte | IF.data trimestral por instituição; universo fixado em `00_fontes_confirmadas.md` §2 |
 | Janela | 201903 – 202603 (29 trimestres) |
 | Data de extração (UTC) | 2026-08-12T00:23:41Z |
@@ -24,18 +24,18 @@
 
 | regime contábil | preenchimento |
 |---|---|
-| AA-H (Res. 2.682) | 4.8% |
-| Res. 4.966 (ECL) | 77.0% |
+| AA-H (Res. 2.682) | 66.9% |
+| Res. 4.966 (ECL) | 59.4% |
 
-Observações válidas no último trimestre (202603): **1.026**.
+Observações válidas no último trimestre (202603): **1.052**.
 
 ## Estatísticas na janela
 
 | medida | valor |
 |---|---|
-| mediana | 0.9499 |
-| p10 | 0.6992 |
-| p90 | 1.2308 |
+| mediana | 0.1002 |
+| p10 | -0.1332 |
+| p90 | 0.4342 |
 
 ## Como reproduzir
 

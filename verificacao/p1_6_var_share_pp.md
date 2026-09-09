@@ -1,24 +1,24 @@
-# Nota de verificação — P1 · Velocidade de ganho de market share
+# Nota de verificação — P1 · Ganho de market share
 
 `p1_6_var_share_pp`
 
 | campo | conteúdo |
 |---|---|
 | Pergunta | **P1** |
-| Fonte primária | IF.data · Resumo |
-| Campos de origem | `carteira_credito` |
-| Fórmula | `(share_t - share_(t-4)) x 100, share = IF / soma do universo` |
-| Referência de comparação | Variação de share dos pares do mesmo TCB |
+| Fonte primária | IF.data · Resumo · Carteira de Crédito |
+| Campos de origem |  |
+| Fórmula | `share(t) − share(t−4), em pontos percentuais da carteira do universo` |
+| Referência de comparação | ver o glossario do painel |
 | Unidade | razão, % ou p.p. conforme a fórmula acima |
 | Deflator | **Essencial.** IPCA, SGS 433 — o indicador compara períodos, então valores nominais inflariam o resultado. Valores reais em R$ de 03/2026 (ver `00_deflator_ipca.md`). |
 | Recorte | IF.data trimestral por instituição; universo fixado em `00_fontes_confirmadas.md` §2 |
 | Janela | 201903 – 202603 (29 trimestres) |
 | Data de extração (UTC) | 2026-08-12T00:23:41Z |
-| Rastreabilidade do bruto | `data_raw/manifesto_coleta.csv` — 973 arquivos com URL e SHA-256 |
+| Rastreabilidade do bruto | `data_raw/manifesto_coleta.csv` — 974 arquivos com URL e SHA-256 |
 
 ## Contas COSIF de origem
 
-- `carteira_credito` = [31000000]
+- (indicador derivado de razões; ver os campos de origem acima)
 
 ## Cobertura observada (% de linhas com valor)
 

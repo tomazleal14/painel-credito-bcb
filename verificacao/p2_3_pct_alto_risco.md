@@ -1,4 +1,4 @@
-# Nota de verificação — P2 · Participação de modalidades de alto risco na carteira PF
+# Nota de verificação — P2 · Carteira PF em alto risco
 
 `p2_3_pct_alto_risco`
 
@@ -6,15 +6,15 @@
 |---|---|
 | Pergunta | **P2** |
 | Fonte primária | IF.data · Carteira PF por modalidade |
-| Campos de origem | `pf_cartao`, `pf_sem_consignacao`, `pf_total` |
-| Fórmula | `(cartão + sem consignação) / total PF` |
-| Referência de comparação | Mesma razão agregada do universo e do SCR.data |
+| Campos de origem |  |
+| Fórmula | `(cartão + sem consignação) ÷ total da carteira PF` |
+| Referência de comparação | ver o glossario do painel |
 | Unidade | razão, % ou p.p. conforme a fórmula acima |
 | Deflator | **Não altera o resultado.** É uma razão entre valores da mesma data-base: o fator do IPCA aparece no numerador e no denominador e se cancela. O cálculo usa as colunas `_real` por consistência, mas o número seria idêntico em termos nominais. |
 | Recorte | IF.data trimestral por instituição; universo fixado em `00_fontes_confirmadas.md` §2 |
 | Janela | 201903 – 202603 (29 trimestres) |
 | Data de extração (UTC) | 2026-08-12T00:23:41Z |
-| Rastreabilidade do bruto | `data_raw/manifesto_coleta.csv` — 973 arquivos com URL e SHA-256 |
+| Rastreabilidade do bruto | `data_raw/manifesto_coleta.csv` — 974 arquivos com URL e SHA-256 |
 
 ## Contas COSIF de origem
 

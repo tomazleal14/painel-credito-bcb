@@ -1,24 +1,24 @@
-# Nota de verificação — P2 · CR5 — share dos cinco maiores
+# Nota de verificação — P2 · CR5
 
 `p2_2_cr5_sistema_pct`
 
 | campo | conteúdo |
 |---|---|
 | Pergunta | **P2** |
-| Fonte primária | IF.data · Resumo |
-| Campos de origem | `carteira_credito` |
-| Fórmula | `soma do share das 5 maiores x 100` |
-| Referência de comparação | Própria série no tempo |
+| Fonte primária | IF.data · Resumo · Carteira de Crédito |
+| Campos de origem |  |
+| Fórmula | `soma do share das 5 maiores instituições do universo` |
+| Referência de comparação | ver o glossario do painel |
 | Unidade | razão, % ou p.p. conforme a fórmula acima |
 | Deflator | **Não altera o resultado.** É uma razão entre valores da mesma data-base: o fator do IPCA aparece no numerador e no denominador e se cancela. O cálculo usa as colunas `_real` por consistência, mas o número seria idêntico em termos nominais. |
 | Recorte | IF.data trimestral por instituição; universo fixado em `00_fontes_confirmadas.md` §2 |
 | Janela | 201903 – 202603 (29 trimestres) |
 | Data de extração (UTC) | 2026-08-12T00:23:41Z |
-| Rastreabilidade do bruto | `data_raw/manifesto_coleta.csv` — 973 arquivos com URL e SHA-256 |
+| Rastreabilidade do bruto | `data_raw/manifesto_coleta.csv` — 974 arquivos com URL e SHA-256 |
 
 ## Contas COSIF de origem
 
-- `carteira_credito` = [31000000]
+- (indicador derivado de razões; ver os campos de origem acima)
 
 ## Cobertura observada (% de linhas com valor)
 

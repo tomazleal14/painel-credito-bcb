@@ -21,6 +21,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 import cartoes
+import catalogo
 import filtros
 import textos as _textos
 from scoring import EIXOS, PESOS_PADRAO, agenda, agenda_grandes, calcula_scores
@@ -110,6 +111,7 @@ f = filtros.barra_lateral(ind, PESOS_PADRAO, EIXOS)
 dt_sel, tcb_sel = f["dt_sel"], f["tcb_sel"]
 seg_sel, porte_min, pesos = f["seg_sel"], f["porte_min"], f["pesos"]
 limiar, cobertura = f["limiar"], f["cobertura"]
+ativos = f["ativos"]
 
 # aplica filtros
 base = ind[ind["tcb"].isin(tcb_sel) & ind["segmento_sr"].isin(seg_sel)].copy()
@@ -118,7 +120,7 @@ if base.empty:
     st.error("Nenhuma instituição atende aos filtros. Amplie a seleção na barra lateral.")
     st.stop()
 
-scored = calcula_scores(base, grupo_pares="tcb", pesos=pesos)
+scored = calcula_scores(base, grupo_pares="tcb", pesos=pesos, ativos=ativos)
 univ = scored[(scored["data_base"] == dt_sel)
               & (scored["carteira_credito_real"] >= porte_min)].copy()
 
@@ -191,6 +193,7 @@ with aba0:
     st.markdown(f"#### {T.bruto('sintese.titulo', 'Os três eixos, decompostos')}")
     hist = scored[scored["carteira_credito_real"] >= porte_min]
     gloss_ind = T.glossario_indicadores
+    comp_eixo = cartoes.indicadores_por_eixo(ativos)
     cols_eixo = st.columns(3, gap="medium")
     for i, eixo in enumerate(EIXOS):
         with cols_eixo[i]:
@@ -203,7 +206,8 @@ with aba0:
                     # os eixos NAO tem o mesmo numero de percentis: concentracao usa 4,
                     # porque HHI do sistema e CR5 sao iguais para todas as instituicoes
                     # e nao geram percentil. Isso fica declarado no cartao.
-                    n_percentis=len(cartoes.INDICADORES_POR_EIXO.get(eixo, []))),
+                    n_percentis=len(comp_eixo.get(eixo, [])),
+                    componentes=comp_eixo.get(eixo, [])),
                 unsafe_allow_html=True)
 
     # ---- o que o numero grande significa (retratil, como o glossario) ----
@@ -247,7 +251,8 @@ with aba0:
         unsafe_allow_html=True)
 
     with st.expander("O que cada indicador mede — glossário dos 18"):
-        st.markdown(cartoes.tabela_glossario(gloss_ind), unsafe_allow_html=True)
+        st.markdown(cartoes.tabela_glossario(gloss_ind, cartoes.indicadores_dos_18(ativos)),
+                    unsafe_allow_html=True)
         st.markdown(
             f"<div class='rodape-fonte' style='margin-top:10px'>"
             f"<b>HHI do sistema</b> e <b>CR5</b> descrevem o mercado inteiro e são iguais "
@@ -437,7 +442,8 @@ NOTAS_CARTAO = {
 
 def faixa_cartoes(pergunta: str) -> None:
     """Os 6 indicadores da pergunta como cartoes: valor, minisserie e faixa do universo."""
-    cols = INDICADORES_DA_ABA[pergunta]
+    eixo = {"p1": "crescimento", "p2": "concentracao", "p3": "deterioracao"}[pergunta]
+    cols = ativos[eixo]
     hist = scored[scored["carteira_credito_real"] >= porte_min]
     linha1, linha2 = st.columns(3, gap="medium"), None
     for i, c in enumerate(cols):
@@ -859,26 +865,22 @@ with aba4:
         st.info("Selecione ao menos duas instituições.")
     else:
         comp = univ[univ["cod_inst"].isin(sel)]
+        # A lista de linhas e MONTADA a partir da selecao ativa: trocar um indicador na
+        # barra lateral troca a linha aqui tambem, sem editar codigo.
+        rot_p = {"crescimento": "P1", "concentracao": "P2", "deterioracao": "P3"}
         LINHAS = [
             ("Carteira de crédito (R$ bi)", "carteira_credito_real", lambda v: v / 1e9, "{:,.1f}"),
             ("Participação no sistema (%)", "share_carteira", lambda v: v * 100, "{:.3f}"),
-            ("P1·1 Crescimento real (% a.a.)", "p1_1_cresc_real_aa", lambda v: v * 100, "{:.1f}"),
-            ("P1·2 Credit gap (%)", "p1_2_credit_gap", lambda v: v * 100, "{:.1f}"),
-            ("P1·3 Trimestres seguidos >15%", "p1_3_trim_consec_acima", lambda v: v, "{:.0f}"),
-            ("P1·4 Carteira ÷ capital", "p1_4_cresc_carteira_sobre_capital", lambda v: v, "{:.2f}"),
-            ("P1·5 Cresc. alto risco (% a.a.)", "p1_5_cresc_alto_risco_aa", lambda v: v * 100, "{:.1f}"),
-            ("P1·6 Var. de share (p.p.)", "p1_6_var_share_pp", lambda v: v, "{:.3f}"),
-            ("P2·3 % em alto risco", "p2_3_pct_alto_risco", lambda v: v * 100, "{:.1f}"),
-            ("P2·4 HHI regional", "p2_4_hhi_regional", lambda v: v, "{:,.0f}"),
-            ("P2·5 % da carteira PJ em grande porte", "p2_5_pct_grande_porte",
-             lambda v: v * 100, "{:.1f}"),
-            ("P2·6 Carteira ÷ captações", "p2_6_loan_to_deposit", lambda v: v, "{:.2f}"),
-            ("P3·1 Inadimplência (%)", "p3_1_inadimplencia", lambda v: v * 100, "{:.2f}"),
-            ("P3·2 Cobertura (%)", "p3_2_cobertura", lambda v: v * 100, "{:.0f}"),
-            ("P3·3 Provisão ÷ carteira (%)", "p3_3_provisao_sobre_carteira", lambda v: v * 100, "{:.2f}"),
-            ("P3·4 Inadimpl. ajustada (%)", "p3_4_inadimplencia_ajustada", lambda v: v * 100, "{:.2f}"),
-            ("P3·5 Ativos problemáticos (%)", "p3_5_ativos_problematicos", lambda v: v * 100, "{:.2f}"),
-            ("P3·6 Folga de capital (p.p.)", "p3_6_folga_capital_pp", lambda v: v, "{:.2f}"),
+        ]
+        for eixo in EIXOS:
+            for i, chave in enumerate(ativos[eixo], start=1):
+                meta = catalogo.POR_CHAVE[chave]
+                sufixo = f" ({meta.unidade})" if meta.unidade else ""
+                LINHAS.append((
+                    f"{rot_p[eixo]}·{i} {meta.rotulo}{sufixo}", chave,
+                    (lambda fat: (lambda v: v * fat))(meta.fator),
+                    "{:,." + str(meta.casas) + "f}"))
+        LINHAS += [
             ("Score final", "score_final", lambda v: v, "{:.3f}"),
             # contexto descritivo -- NAO entra no score nem conta como um dos 18 indicadores
             ("(contexto) Ticket médio por cliente (R$ mil)", "ctx_ticket_medio_real",

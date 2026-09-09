@@ -1,20 +1,20 @@
-# Nota de verificação — P3 · Folga de capital sobre o mínimo regulatório
+# Nota de verificação — P3 · Folga de capital
 
 `p3_6_folga_capital_pp`
 
 | campo | conteúdo |
 |---|---|
 | Pergunta | **P3** |
-| Fonte primária | IF.data · Informações de Capital |
-| Campos de origem | `indice_basileia` |
-| Fórmula | `Índice de Basileia x 100 - 10,5` |
-| Referência de comparação | Mínimo 8% + conservação 2,5%; adicionais podem elevar o piso |
+| Fonte primária | IF.data · Informações de Capital · Índice de Basileia |
+| Campos de origem |  |
+| Fórmula | `Basileia × 100 − 10,5 (8% de requisito + 2,5% de conservação)` |
+| Referência de comparação | ver o glossario do painel |
 | Unidade | razão, % ou p.p. conforme a fórmula acima |
 | Deflator | **Não altera o resultado.** É uma razão entre valores da mesma data-base: o fator do IPCA aparece no numerador e no denominador e se cancela. O cálculo usa as colunas `_real` por consistência, mas o número seria idêntico em termos nominais. |
 | Recorte | IF.data trimestral por instituição; universo fixado em `00_fontes_confirmadas.md` §2 |
 | Janela | 201903 – 202603 (29 trimestres) |
 | Data de extração (UTC) | 2026-08-12T00:23:41Z |
-| Rastreabilidade do bruto | `data_raw/manifesto_coleta.csv` — 973 arquivos com URL e SHA-256 |
+| Rastreabilidade do bruto | `data_raw/manifesto_coleta.csv` — 974 arquivos com URL e SHA-256 |
 
 ## Contas COSIF de origem
 

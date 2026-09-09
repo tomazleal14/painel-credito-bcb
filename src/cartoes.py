@@ -14,45 +14,27 @@ import re
 import numpy as np
 import pandas as pd
 
+import catalogo
 from tema import SEMAFORO, SEMAFORO_SOFT, TEMA, sparkline
 from textos import md_html
 
-# como formatar e como narrar cada indicador
-# chave -> (rotulo, unidade, fator, casas, sentido)
-#   sentido = "maior_pior" | "menor_pior" | "neutro"
-FORMATO = {
-    "p1_1_cresc_real_aa":               ("Crescimento real da carteira", "% a.a.", 100, 1, "maior_pior"),
-    "p1_2_credit_gap":                  ("Credit gap", "%", 100, 1, "maior_pior"),
-    "p1_3_trim_consec_acima":           ("Trimestres seguidos > 15%", "trim.", 1, 0, "maior_pior"),
-    "p1_4_cresc_carteira_sobre_capital": ("Carteira ÷ capital", "×", 1, 2, "maior_pior"),
-    "p1_5_cresc_alto_risco_aa":         ("Crescimento em alto risco", "% a.a.", 100, 1, "maior_pior"),
-    "p1_6_var_share_pp":                ("Ganho de market share", "p.p.", 1, 3, "maior_pior"),
-
-    "p2_1_hhi_sistema":                 ("HHI do sistema", "", 1, 0, "maior_pior"),
-    "p2_2_cr5_sistema_pct":             ("CR5", "%", 1, 1, "maior_pior"),
-    "p2_3_pct_alto_risco":              ("Carteira PF em alto risco", "%", 100, 1, "maior_pior"),
-    "p2_4_hhi_regional":                ("HHI regional", "", 1, 0, "maior_pior"),
-    "p2_5_pct_grande_porte":            ("Carteira PJ em grande porte", "%", 100, 1, "maior_pior"),
-    "p2_6_loan_to_deposit":             ("Carteira ÷ captações", "×", 1, 2, "maior_pior"),
-
-    "p3_1_inadimplencia":               ("Inadimplência", "%", 100, 2, "maior_pior"),
-    "p3_2_cobertura":                   ("Cobertura de provisões", "%", 100, 0, "menor_pior"),
-    "p3_3_provisao_sobre_carteira":     ("Provisão ÷ carteira", "%", 100, 2, "menor_pior"),
-    "p3_4_inadimplencia_ajustada":      ("Inadimplência ajustada", "%", 100, 2, "maior_pior"),
-    "p3_5_ativos_problematicos":        ("Ativos problemáticos", "%", 100, 2, "maior_pior"),
-    "p3_6_folga_capital_pp":            ("Folga de capital", "p.p.", 1, 1, "menor_pior"),
-}
+# FORMATO e derivado do catalogo, para nao haver duas listas de indicadores no projeto.
+# Formato mantido como (rotulo, unidade, fator, casas, sentido) por compatibilidade
+# com o codigo ja escrito.
+FORMATO = {i.chave: (i.rotulo, i.unidade, i.fator, i.casas, i.sentido)
+           for i in catalogo.CATALOGO}
 
 def tabela_glossario(glossario: dict, eixos_indicadores: dict | None = None) -> str:
     """Tabela 'o que cada indicador mede', para o expander da Visao geral.
 
-    Usa OS 18 indicadores do trabalho (6 por pergunta), e nao a decomposicao do score:
-    HHI do sistema e CR5 medem o mercado inteiro, nao a instituicao, por isso nao entram
-    no percentil de nenhum eixo -- mas continuam sendo dois dos 18 e precisam de verbete.
+    Usa OS 18 ATIVOS (6 por pergunta), e nao a decomposicao do score: HHI do sistema e
+    CR5 medem o mercado inteiro, nao a instituicao, por isso nao entram no percentil de
+    nenhum eixo -- mas continuam sendo dois dos 18 e precisam de verbete.
     """
     eixos_indicadores = eixos_indicadores or INDICADORES_DOS_18
     if not glossario:
-        return "<div>glossário indisponível — verifique [glossario_indicadores] em textos.toml</div>"
+        return ("<div>glossário indisponível — verifique [glosario_indicadores] "
+                "em textos.toml</div>")
 
     titulo_eixo = {"crescimento": "P1 · Crescimento", "concentracao": "P2 · Concentração",
                    "deterioracao": "P3 · Deterioração"}
@@ -72,27 +54,28 @@ def tabela_glossario(glossario: dict, eixos_indicadores: dict | None = None) -> 
     return "".join(linhas)
 
 
-# Decomposicao do SCORE: so indicadores medidos POR INSTITUICAO entram no percentil.
-# HHI do sistema e CR5 descrevem o mercado inteiro e sao iguais para todas as
-# instituicoes no trimestre -- ranquea-las por eles nao teria sentido.
-INDICADORES_POR_EIXO = {
-    "crescimento": ["p1_1_cresc_real_aa", "p1_2_credit_gap", "p1_3_trim_consec_acima",
-                    "p1_4_cresc_carteira_sobre_capital", "p1_5_cresc_alto_risco_aa",
-                    "p1_6_var_share_pp"],
-    "concentracao": ["p2_3_pct_alto_risco", "p2_4_hhi_regional",
-                     "p2_5_pct_grande_porte", "p2_6_loan_to_deposit"],
-    "deterioracao": ["p3_1_inadimplencia", "p3_2_cobertura", "p3_3_provisao_sobre_carteira",
-                     "p3_4_inadimplencia_ajustada", "p3_5_ativos_problematicos",
-                     "p3_6_folga_capital_pp"],
-}
+def indicadores_por_eixo(ativos: dict | None = None) -> dict[str, list[str]]:
+    """Decomposicao do SCORE: so indicadores medidos POR INSTITUICAO entram no percentil.
 
-# OS 18 do trabalho (6 por pergunta) -- inclui os dois de sistema, para o glossario.
-INDICADORES_DOS_18 = {
-    "crescimento": INDICADORES_POR_EIXO["crescimento"],
-    "concentracao": ["p2_1_hhi_sistema", "p2_2_cr5_sistema_pct"]
-                    + INDICADORES_POR_EIXO["concentracao"],
-    "deterioracao": INDICADORES_POR_EIXO["deterioracao"],
-}
+    HHI do sistema e CR5 descrevem o mercado inteiro e sao iguais para todas as
+    instituicoes no trimestre -- ranquea-las por eles nao teria sentido, entao ficam
+    de fora daqui (mas continuam entre os 18 e no glossario).
+    """
+    ativos = ativos or {e: catalogo.padrao_do_eixo(e) for e in catalogo.EIXOS}
+    return {eixo: [c for c in chaves
+                   if catalogo.POR_CHAVE.get(c) and
+                   catalogo.POR_CHAVE[c].escopo != "sistema"]
+            for eixo, chaves in ativos.items()}
+
+
+def indicadores_dos_18(ativos: dict | None = None) -> dict[str, list[str]]:
+    """Os 18 do trabalho (6 por pergunta), inclusive os de sistema -- para o glossario."""
+    return dict(ativos or {e: catalogo.padrao_do_eixo(e) for e in catalogo.EIXOS})
+
+
+# compatibilidade com scripts que usam a selecao padrao
+INDICADORES_POR_EIXO = indicadores_por_eixo()
+INDICADORES_DOS_18 = indicadores_dos_18()
 
 
 def num(v: float, casas: int) -> str:
@@ -194,7 +177,8 @@ def carteira_exposta(df: pd.DataFrame, eixo: str) -> pd.Series:
 
 def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
                 rotulo: str, descricao: str, glossario: dict | None = None,
-                n_percentis: int | None = None) -> str:
+                n_percentis: int | None = None,
+                componentes: list[str] | None = None) -> str:
     """Cartao de um EIXO, no padrao subindice -> componentes.
 
     Destaque: CARTEIRA EXPOSTA a risco alto (% do recorte). O score do eixo continua
@@ -234,7 +218,8 @@ def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
     # Entre parenteses vai o valor do recorte inteiro, como REFERENCIA de comparacao.
     marcadas = df_atual[df_atual[col_sem] == "alto"] if col_sem in df_atual else df_atual.iloc[0:0]
     partes = []
-    for c in INDICADORES_POR_EIXO.get(eixo, []):
+    for c in (componentes if componentes is not None
+              else INDICADORES_POR_EIXO.get(eixo, [])):
         if c not in df_atual.columns:
             continue
         r, u, f, ca, _s = FORMATO.get(c, (c, "", 1, 2, "neutro"))

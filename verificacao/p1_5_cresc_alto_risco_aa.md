@@ -1,20 +1,20 @@
-# Nota de verificação — P1 · Crescimento nas modalidades de maior risco
+# Nota de verificação — P1 · Crescimento em alto risco
 
 `p1_5_cresc_alto_risco_aa`
 
 | campo | conteúdo |
 |---|---|
 | Pergunta | **P1** |
-| Fonte primária | IF.data · Carteira PF por modalidade |
-| Campos de origem | `pf_cartao`, `pf_sem_consignacao` |
-| Fórmula | `var. % a.a. real de (cartão + empréstimo sem consignação)` |
-| Referência de comparação | Mesma modalidade no sistema (SCR.data) |
+| Fonte primária | IF.data · Carteira PF por modalidade (cartão + sem consignação) |
+| Campos de origem |  |
+| Fórmula | `variação em 12 meses da soma das duas modalidades, deflacionada` |
+| Referência de comparação | ver o glossario do painel |
 | Unidade | razão, % ou p.p. conforme a fórmula acima |
 | Deflator | **Essencial.** IPCA, SGS 433 — o indicador compara períodos, então valores nominais inflariam o resultado. Valores reais em R$ de 03/2026 (ver `00_deflator_ipca.md`). |
 | Recorte | IF.data trimestral por instituição; universo fixado em `00_fontes_confirmadas.md` §2 |
 | Janela | 201903 – 202603 (29 trimestres) |
 | Data de extração (UTC) | 2026-08-12T00:23:41Z |
-| Rastreabilidade do bruto | `data_raw/manifesto_coleta.csv` — 973 arquivos com URL e SHA-256 |
+| Rastreabilidade do bruto | `data_raw/manifesto_coleta.csv` — 974 arquivos com URL e SHA-256 |
 
 ## Contas COSIF de origem
 

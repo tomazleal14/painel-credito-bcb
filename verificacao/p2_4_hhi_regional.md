@@ -1,20 +1,20 @@
-# Nota de verificação — P2 · Concentração regional da carteira
+# Nota de verificação — P2 · HHI regional
 
 `p2_4_hhi_regional`
 
 | campo | conteúdo |
 |---|---|
 | Pergunta | **P2** |
-| Fonte primária | IF.data · Carteira por região geográfica |
-| Campos de origem | `reg_sudeste`, `reg_sul`, `reg_nordeste`, `reg_norte`, `reg_centro_oeste` |
-| Fórmula | `HHI entre as 5 regiões x 10.000` |
-| Referência de comparação | HHI regional do universo; ESTBAN para detalhe municipal |
+| Fonte primária | IF.data · Carteira de crédito ativa por região geográfica |
+| Campos de origem |  |
+| Fórmula | `Σ share_região² × 10.000, dentro da própria carteira` |
+| Referência de comparação | ver o glossario do painel |
 | Unidade | razão, % ou p.p. conforme a fórmula acima |
 | Deflator | **Não altera o resultado.** É uma razão entre valores da mesma data-base: o fator do IPCA aparece no numerador e no denominador e se cancela. O cálculo usa as colunas `_real` por consistência, mas o número seria idêntico em termos nominais. |
 | Recorte | IF.data trimestral por instituição; universo fixado em `00_fontes_confirmadas.md` §2 |
 | Janela | 201903 – 202603 (29 trimestres) |
 | Data de extração (UTC) | 2026-08-12T00:23:41Z |
-| Rastreabilidade do bruto | `data_raw/manifesto_coleta.csv` — 973 arquivos com URL e SHA-256 |
+| Rastreabilidade do bruto | `data_raw/manifesto_coleta.csv` — 974 arquivos com URL e SHA-256 |
 
 ## Contas COSIF de origem
 

@@ -19,29 +19,33 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-# indicador -> (eixo, inverter?)  inverter=True quando MAIOR valor significa MENOS risco
-INDICADORES_SCORE = {
-    "p1_1_cresc_real_aa":               ("crescimento", False),
-    "p1_2_credit_gap":                  ("crescimento", False),
-    "p1_3_trim_consec_acima":           ("crescimento", False),
-    "p1_4_cresc_carteira_sobre_capital": ("crescimento", False),
-    "p1_5_cresc_alto_risco_aa":         ("crescimento", False),
-    "p1_6_var_share_pp":                ("crescimento", False),
+import catalogo
 
-    "p2_3_pct_alto_risco":              ("concentracao", False),
-    "p2_4_hhi_regional":                ("concentracao", False),
-    "p2_5_pct_grande_porte":            ("concentracao", False),
-    "p2_6_loan_to_deposit":             ("concentracao", False),
+# A lista de indicadores NAO vive mais aqui: vem do catalogo (src/catalogo.py) com a
+# selecao ativa de indicadores.toml, para que trocar um indicador seja configuracao e
+# nao programacao. `sentido` no catalogo define se o percentil e invertido.
+#
+# Indicadores de escopo "sistema" (HHI, CR5) sao descartados do score: tem valor
+# identico para todas as instituicoes do trimestre e nao geram percentil.
+EIXOS = list(catalogo.EIXOS)
 
-    "p3_1_inadimplencia":               ("deterioracao", False),
-    "p3_2_cobertura":                   ("deterioracao", True),
-    "p3_3_provisao_sobre_carteira":     ("deterioracao", True),
-    "p3_4_inadimplencia_ajustada":      ("deterioracao", False),
-    "p3_5_ativos_problematicos":        ("deterioracao", False),
-    "p3_6_folga_capital_pp":            ("deterioracao", True),
-}
 
-EIXOS = ["crescimento", "concentracao", "deterioracao"]
+def indicadores_para_score(ativos: dict[str, list[str]] | None = None
+                           ) -> dict[str, tuple[str, bool]]:
+    """{chave: (eixo, inverter)} apenas dos indicadores que pontuam."""
+    ativos = ativos or {e: catalogo.padrao_do_eixo(e) for e in EIXOS}
+    fora = {}
+    for eixo, chaves in ativos.items():
+        for c in chaves:
+            ind = catalogo.POR_CHAVE.get(c)
+            if ind is None or ind.escopo == "sistema":
+                continue
+            fora[c] = (eixo, ind.sentido == "menor_pior")
+    return fora
+
+
+# compatibilidade: a selecao padrao, para scripts que nao passam `ativos`
+INDICADORES_SCORE = indicadores_para_score()
 PESOS_PADRAO = {"crescimento": 0.30, "concentracao": 0.25, "deterioracao": 0.45}
 
 CORTE_ALTO = 0.75
@@ -59,16 +63,20 @@ def semaforo(v: float) -> str:
 
 
 def calcula_scores(df: pd.DataFrame, grupo_pares: str | None = "tcb",
-                   pesos: dict[str, float] | None = None) -> pd.DataFrame:
+                   pesos: dict[str, float] | None = None,
+                   ativos: dict[str, list[str]] | None = None) -> pd.DataFrame:
     """Adiciona percentis, scores por eixo, semaforos e score final.
 
     `grupo_pares`: coluna que define o grupo de comparacao (None = todo o universo).
+    `ativos`: quais indicadores compoem cada eixo. None = selecao padrao do catalogo.
+              Trocar um indicador aqui muda o score na hora, sem recalcular a base.
     """
     pesos = pesos or PESOS_PADRAO
+    indicadores = indicadores_para_score(ativos)
     d = df.copy()
 
     chaves = ["data_base"] + ([grupo_pares] if grupo_pares else [])
-    for col, (_eixo, inverter) in INDICADORES_SCORE.items():
+    for col, (_eixo, inverter) in indicadores.items():
         if col not in d.columns:
             continue
         s = d[col].replace([np.inf, -np.inf], np.nan)
@@ -76,7 +84,7 @@ def calcula_scores(df: pd.DataFrame, grupo_pares: str | None = "tcb",
         d[f"pct_{col}"] = (1 - pct) if inverter else pct
 
     for eixo in EIXOS:
-        cols = [f"pct_{c}" for c, (e, _) in INDICADORES_SCORE.items()
+        cols = [f"pct_{c}" for c, (e, _) in indicadores.items()
                 if e == eixo and f"pct_{c}" in d.columns]
         # media ignorando ausentes: falta de dado reduz o denominador, nao vira zero
         d[f"score_{eixo}"] = d[cols].mean(axis=1, skipna=True) if cols else np.nan

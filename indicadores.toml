@@ -1,0 +1,59 @@
+# ============================================================================
+#  INDICADORES ATIVOS  --  quais 6 indicadores compõem cada pergunta.
+#
+#  O painel calcula TODOS os indicadores do catálogo (src/catalogo.py) e guarda
+#  na base. Este arquivo diz apenas QUAIS entram no score de cada eixo.
+#
+#  Para trocar um indicador:
+#    1. substitua a chave na lista do eixo correspondente
+#    2. salve e recarregue a página -- não precisa reiniciar nem recalcular nada
+#
+#  A troca também pode ser feita AO VIVO na barra lateral do painel, em
+#  "Trocar indicadores", sem editar este arquivo. O que estiver aqui é o ponto
+#  de partida de cada sessão.
+#
+#  REGRA DO TRABALHO: exatamente 6 por pergunta. O painel recusa listas com
+#  tamanho diferente e avisa na tela.
+#
+#  As chaves disponíveis estão em src/catalogo.py e na aba de troca da barra
+#  lateral, com a ficha de cada indicador (fonte, fórmula, unidade).
+# ============================================================================
+
+[ativos]
+
+# P1 -- CRESCIMENTO
+# alternativas: p1_7_cresc_ativo_aa, p1_8_cresc_captacoes_aa, p1_9_cresc_clientes_aa,
+#               p1_10_cresc_pj_aa, p1_11_aceleracao_pp, p1_12_cresc_ticket_aa
+crescimento = [
+  "p1_1_cresc_real_aa",
+  "p1_2_credit_gap",
+  "p1_3_trim_consec_acima",
+  "p1_4_cresc_carteira_sobre_capital",
+  "p1_5_cresc_alto_risco_aa",
+  "p1_6_var_share_pp",
+]
+
+# P2 -- CONCENTRAÇÃO
+# alternativas: p2_7_hhi_modalidade_pf, p2_8_max_regiao_pct, p2_9_credito_sobre_ativo,
+#               p2_10_ticket_medio, p2_11_pct_capital_giro, p2_12_hhi_porte_pj
+concentracao = [
+  "p2_1_hhi_sistema",
+  "p2_2_cr5_sistema_pct",
+  "p2_3_pct_alto_risco",
+  "p2_4_hhi_regional",
+  "p2_5_pct_grande_porte",
+  "p2_6_loan_to_deposit",
+]
+
+# P3 -- DETERIORAÇÃO
+# alternativas: p3_7_folga_capital_principal_pp, p3_8_razao_alavancagem,
+#               p3_9_gap_problematico_pp, p3_10_problematico_sobre_pl,
+#               p3_11_var_inadimplencia_pp, p3_12_retorno_sobre_pl
+deterioracao = [
+  "p3_1_inadimplencia",
+  "p3_2_cobertura",
+  "p3_3_provisao_sobre_carteira",
+  "p3_4_inadimplencia_ajustada",
+  "p3_5_ativos_problematicos",
+  "p3_6_folga_capital_pp",
+]

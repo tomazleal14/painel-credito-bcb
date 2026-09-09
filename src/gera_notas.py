@@ -12,104 +12,25 @@ from __future__ import annotations
 
 import pandas as pd
 
+import catalogo
 from comum import DATA_PROC, DATA_RAW, VERIFICACAO, agora_utc
 
 # indicador -> (pergunta, titulo, campos de origem, formula, referencia, fonte principal)
+# As fichas sao DERIVADAS do catalogo (src/catalogo.py), para nao existir uma segunda
+# lista de indicadores no projeto. Assim, qualquer indicador que entre numa troca ao
+# vivo ja nasce com nota de verificacao.
 FICHAS = {
-    "p1_1_cresc_real_aa": (
-        "P1", "Crescimento real anual da carteira",
-        ["carteira_credito"], "carteira_real_t / carteira_real_(t-4) - 1",
-        "Mediana do universo no trimestre; limiar de 15% a.a. real", "IF.data · Resumo"),
-    "p1_2_credit_gap": (
-        "P1", "Credit gap da instituição",
-        ["carteira_credito"], "desvio do log da carteira real frente à tendência HP (lambda=1600)",
-        "Própria tendência; +1 desvio-padrão do gap", "IF.data · Resumo"),
-    "p1_3_trim_consec_acima": (
-        "P1", "Persistência do crescimento acelerado",
-        ["carteira_credito"], "nº de trimestres consecutivos com crescimento real >= 15% a.a.",
-        "8 trimestres ou mais = boom (Dell'Ariccia et al., FMI)", "IF.data · Resumo (derivado)"),
-    "p1_4_cresc_carteira_sobre_capital": (
-        "P1", "Crescimento da carteira ÷ crescimento do capital",
-        ["carteira_credito", "pr"], "(1+cresc_carteira) / (1+cresc_PR)",
-        "1,0 = crescimento pari passu ao capital", "IF.data · Resumo + Informações de Capital"),
-    "p1_5_cresc_alto_risco_aa": (
-        "P1", "Crescimento nas modalidades de maior risco",
-        ["pf_cartao", "pf_sem_consignacao"],
-        "var. % a.a. real de (cartão + empréstimo sem consignação)",
-        "Mesma modalidade no sistema (SCR.data)", "IF.data · Carteira PF por modalidade"),
-    "p1_6_var_share_pp": (
-        "P1", "Velocidade de ganho de market share",
-        ["carteira_credito"], "(share_t - share_(t-4)) x 100, share = IF / soma do universo",
-        "Variação de share dos pares do mesmo TCB", "IF.data · Resumo"),
-
-    "p2_1_hhi_sistema": (
-        "P2", "HHI do sistema", ["carteira_credito"], "soma dos share^2 x 10.000",
-        "Faixas antitruste 1.500 / 2.500", "IF.data · Resumo"),
-    "p2_2_cr5_sistema_pct": (
-        "P2", "CR5 — share dos cinco maiores", ["carteira_credito"],
-        "soma do share das 5 maiores x 100", "Própria série no tempo", "IF.data · Resumo"),
-    "p2_3_pct_alto_risco": (
-        "P2", "Participação de modalidades de alto risco na carteira PF",
-        ["pf_cartao", "pf_sem_consignacao", "pf_total"],
-        "(cartão + sem consignação) / total PF",
-        "Mesma razão agregada do universo e do SCR.data",
-        "IF.data · Carteira PF por modalidade"),
-    "p2_4_hhi_regional": (
-        "P2", "Concentração regional da carteira",
-        ["reg_sudeste", "reg_sul", "reg_nordeste", "reg_norte", "reg_centro_oeste"],
-        "HHI entre as 5 regiões x 10.000",
-        "HHI regional do universo; ESTBAN para detalhe municipal",
-        "IF.data · Carteira por região geográfica"),
-    "p2_5_pct_grande_porte": (
-        "P2", "Exposição a tomadores de grande porte",
-        ["pj_porte_grande", "pj_total_porte"],
-        "carteira PJ em tomadores de grande porte / total da carteira PJ",
-        "Mediana dos pares do mesmo TCB; p75 do universo = 24,1%",
-        "IF.data · Carteira de crédito ativa PJ por porte do tomador"),
-    "p2_6_loan_to_deposit": (
-        "P2", "Dependência de funding (loan-to-deposit)",
-        ["carteira_credito", "captacoes"], "carteira real / captações reais",
-        "1,0 e mediana dos pares do mesmo TCB", "IF.data · Resumo"),
-
-    "p3_1_inadimplencia": (
-        "P3", "Inadimplência sobre a carteira",
-        ["inadimplencia_valor", "carteira_credito"], "carteira inadimplida / carteira",
-        "SGS 21082 (SFN), 21112 (PF livre), 21086 (PJ livre)",
-        "IF.data · Carteira por instrumentos financeiros"),
-    "p3_1b_niveis_eh": (
-        "P3", "Carteira em níveis E–H (regime AA–H, até 202412)",
-        ["risco_e", "risco_f", "risco_g", "risco_h", "carteira_credito"],
-        "(E+F+G+H) / carteira",
-        "NÃO comparável à inadimplência 90+: fica ~2,5 p.p. acima (ver validação cruzada)",
-        "IF.data · Carteira por nível de risco"),
-    "p3_2_cobertura": (
-        "P3", "Índice de cobertura de provisões",
-        ["perda_esperada", "provisao_antiga", "inadimplencia_valor"],
-        "|provisão| / carteira inadimplida", "100% ou mais, e própria série",
-        "IF.data · Ativo (Perda Esperada / Provisão sobre Operações de Crédito)"),
-    "p3_3_provisao_sobre_carteira": (
-        "P3", "Provisão sobre carteira total",
-        ["perda_esperada", "provisao_antiga", "carteira_credito"],
-        "|provisão| / carteira", "Mediana dos pares", "IF.data · Ativo"),
-    "p3_4_inadimplencia_ajustada": (
-        "P3", "Inadimplência ajustada ao crescimento (efeito denominador)",
-        ["inadimplencia_valor", "carteira_credito"],
-        "carteira inadimplida_t / carteira real_(t-4)",
-        "Mesma métrica nas IFs de baixo crescimento; diagonal de igualdade",
-        "IF.data · Carteira por instrumentos financeiros + Resumo"),
-    "p3_5_ativos_problematicos": (
-        "P3", "Ativos problemáticos sobre a carteira",
-        ["ativos_problematicos_valor", "carteira_credito"],
-        "ativos problemáticos / carteira", "SCR.data — ativo problemático do sistema",
-        "IF.data · Carteira por instrumentos financeiros"),
-    "p3_6_folga_capital_pp": (
-        "P3", "Folga de capital sobre o mínimo regulatório",
-        ["indice_basileia"], "Índice de Basileia x 100 - 10,5",
-        "Mínimo 8% + conservação 2,5%; adicionais podem elevar o piso",
-        "IF.data · Informações de Capital"),
+    ind.chave: (
+        {"crescimento": "P1", "concentracao": "P2", "deterioracao": "P3"}[ind.eixo],
+        ind.rotulo,
+        [],                      # campos de origem: descritos na propria formula
+        ind.formula,
+        ind.nota or "ver o glossario do painel",
+        ind.fonte,
+    )
+    for ind in catalogo.CATALOGO
 }
 
-# nome do campo do painel -> trecho do nome da coluna no IF.data (para achar a formula COSIF)
 ROTULO = {
     "carteira_credito": "carteira de cr", "pr": "patrim",
     "captacoes": "capta", "qtd_clientes": "quantidade de clientes",

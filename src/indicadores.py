@@ -192,8 +192,70 @@ def calcula() -> pd.DataFrame:
                                            df["carteira_credito_real"] > 0))
     df["p3_6_folga_capital_pp"] = df["indice_basileia"] * 100 - BASILEIA_MINIMA
 
+    # ------------- ALTERNATIVAS DO CATALOGO (disponiveis para troca ao vivo) -------------
+    # Sao calculadas SEMPRE, mesmo sem estarem entre os 6 ativos de cada pergunta: e o que
+    # permite trocar um indicador por outro na barra lateral sem recalcular a base.
+    # Ver src/catalogo.py para a ficha de cada um.
+    df = df.sort_values(["cod_inst", "data_base"]).reset_index(drop=True)
+    gg = df.groupby("cod_inst", group_keys=False)
+
+    def _yoy(col: str):
+        if col not in df.columns:
+            return np.nan
+        return gg[col].apply(_var_anual)
+
+    # --- P1 ---
+    df["p1_7_cresc_ativo_aa"] = _yoy("ativo_total_real")
+    df["p1_8_cresc_captacoes_aa"] = _yoy("captacoes_real")
+    df["p1_9_cresc_clientes_aa"] = _yoy("qtd_clientes")
+    df["p1_10_cresc_pj_aa"] = _yoy("pj_total_real")
+    df["p1_11_aceleracao_pp"] = gg["p1_1_cresc_real_aa"].apply(
+        lambda s: s - s.shift(TRIM_POR_ANO))
+    df["_ticket"] = (df["carteira_credito_real"]
+                     / df["qtd_clientes"].where(df["qtd_clientes"] > 0))
+    df["p1_12_cresc_ticket_aa"] = gg["_ticket"].apply(_var_anual)
+
+    # --- P2 ---
+    cols_pf = [c for c in ["pf_cartao_real", "pf_sem_consignacao_real", "pf_consignado_real",
+                           "pf_veiculos_real", "pf_habitacao_real", "pf_rural_real",
+                           "pf_outros_real"] if c in df.columns]
+    df["p2_7_hhi_modalidade_pf"] = _hhi_linhas(df, cols_pf) if cols_pf else np.nan
+    if cols_reg:
+        soma_reg = df[cols_reg].sum(axis=1, min_count=1)
+        df["p2_8_max_regiao_pct"] = (df[cols_reg].max(axis=1)
+                                     / soma_reg.where(soma_reg > 0))
+    else:
+        df["p2_8_max_regiao_pct"] = np.nan
+    df["p2_9_credito_sobre_ativo"] = (df["carteira_credito_real"]
+                                      / df["ativo_total_real"].where(
+                                          df["ativo_total_real"] > 0))
+    df["p2_10_ticket_medio"] = df["_ticket"]
+    df["p2_11_pct_capital_giro"] = (df.get("pj_capital_giro_real")
+                                    / df["pj_total_real"].where(df["pj_total_real"] > 0)
+                                    if "pj_capital_giro_real" in df.columns else np.nan)
+    cols_porte = [c for c in ["pj_porte_micro_real", "pj_porte_pequena_real",
+                              "pj_porte_media_real", "pj_porte_grande_real"]
+                  if c in df.columns]
+    df["p2_12_hhi_porte_pj"] = _hhi_linhas(df, cols_porte) if cols_porte else np.nan
+
+    # --- P3 ---
+    df["p3_7_folga_capital_principal_pp"] = (df["indice_capital_principal"] * 100 - 7.0
+                                             if "indice_capital_principal" in df.columns
+                                             else np.nan)
+    df["p3_8_razao_alavancagem"] = df.get("razao_alavancagem", np.nan)
+    df["p3_9_gap_problematico_pp"] = (df["p3_5_ativos_problematicos"]
+                                      - df["p3_1_inadimplencia"])
+    df["p3_10_problematico_sobre_pl"] = (df["ativos_problematicos_valor_real"]
+                                         / df["patrimonio_liquido_real"].where(
+                                             df["patrimonio_liquido_real"] > 0))
+    df["p3_11_var_inadimplencia_pp"] = gg["p3_1_inadimplencia"].apply(
+        lambda s: s - s.shift(TRIM_POR_ANO))
+    df["p3_12_retorno_sobre_pl"] = (df["lucro_liquido_real"]
+                                    / df["patrimonio_liquido_real"].where(
+                                        df["patrimonio_liquido_real"] > 0))
+
     df = df.drop(columns=[c for c in ["_alto_risco_real", "_atraso_real", "_provisao_real",
-                                      "_niveis_eh_real", "_carteira_defasada"]
+                                      "_niveis_eh_real", "_carteira_defasada", "_ticket"]
                           if c in df.columns])
 
     DATA_PROC.mkdir(parents=True, exist_ok=True)

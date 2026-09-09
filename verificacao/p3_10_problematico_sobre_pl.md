@@ -1,16 +1,16 @@
-# Nota de verificação — P1 · Carteira ÷ capital
+# Nota de verificação — P3 · Ativos problemáticos ÷ PL
 
-`p1_4_cresc_carteira_sobre_capital`
+`p3_10_problematico_sobre_pl`
 
 | campo | conteúdo |
 |---|---|
-| Pergunta | **P1** |
-| Fonte primária | IF.data · Resumo + Informações de Capital (Patrimônio de Referência) |
+| Pergunta | **P3** |
+| Fonte primária | IF.data · Ativos problemáticos ÷ Resumo · Patrimônio Líquido |
 | Campos de origem |  |
-| Fórmula | `(1+cresc. da carteira) ÷ (1+cresc. do PR), ambos em 12 meses` |
-| Referência de comparação | PR só existe no tipo 1009, a partir de 2023Q3 |
+| Fórmula | `ativos problemáticos ÷ patrimônio líquido` |
+| Referência de comparação | capacidade de absorver a perda com capital próprio |
 | Unidade | razão, % ou p.p. conforme a fórmula acima |
-| Deflator | **Essencial.** IPCA, SGS 433 — o indicador compara períodos, então valores nominais inflariam o resultado. Valores reais em R$ de 03/2026 (ver `00_deflator_ipca.md`). |
+| Deflator | **Não altera o resultado.** É uma razão entre valores da mesma data-base: o fator do IPCA aparece no numerador e no denominador e se cancela. O cálculo usa as colunas `_real` por consistência, mas o número seria idêntico em termos nominais. |
 | Recorte | IF.data trimestral por instituição; universo fixado em `00_fontes_confirmadas.md` §2 |
 | Janela | 201903 – 202603 (29 trimestres) |
 | Data de extração (UTC) | 2026-08-12T00:23:41Z |
@@ -24,18 +24,18 @@
 
 | regime contábil | preenchimento |
 |---|---|
-| AA-H (Res. 2.682) | 4.8% |
-| Res. 4.966 (ECL) | 77.0% |
+| AA-H (Res. 2.682) | 0.0% |
+| Res. 4.966 (ECL) | 78.8% |
 
-Observações válidas no último trimestre (202603): **1.026**.
+Observações válidas no último trimestre (202603): **1.079**.
 
 ## Estatísticas na janela
 
 | medida | valor |
 |---|---|
-| mediana | 0.9499 |
-| p10 | 0.6992 |
-| p90 | 1.2308 |
+| mediana | 0.1731 |
+| p10 | 0.0000 |
+| p90 | 0.6508 |
 
 ## Como reproduzir
 

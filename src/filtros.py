@@ -19,6 +19,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+import catalogo
 from comum import DATA_PROC
 from tema import TEMA
 
@@ -179,12 +180,13 @@ def barra_lateral(ind: pd.DataFrame, pesos_padrao: dict, eixos: list[str]) -> di
         help="Entra na agenda quem tiver score acima deste valor. Um limiar explícito é "
              "mais defensável que um corte em 'as N primeiras': com top-N, a última "
              "incluída e a primeira excluída podem diferir em 0,002 de score.")
+    # slider em pontos percentuais inteiros: o format do Streamlit e um printf sobre o
+    # valor cru, entao uma fracao (0,80) com "%.0f%%" apareceria como "1%".
     cobertura = sb.slider(
-        "Cobertura da lista de grandes", 0.50, 0.95, 0.80, 0.05,
-        format="%.0f%%",
+        "Cobertura da lista de grandes", 50, 95, 80, 5, format="%d%%",
         help="A segunda lista reúne as maiores instituições que, somadas, respondem por "
              "esta fatia da carteira do recorte. Todas estão na alçada da supervisão por "
-             "tamanho; o score define a ordem em que se olha.")
+             "tamanho; o score define a ordem em que se olha.") / 100
 
     # ---------------------------------------------------------------- pesos
     sb.markdown("<div class='filtro-titulo'>Pesos do score</div>", unsafe_allow_html=True)
@@ -200,6 +202,68 @@ def barra_lateral(ind: pd.DataFrame, pesos_padrao: dict, eixos: list[str]) -> di
         pesos = dict(pesos_padrao)
         sb.warning("Todos os pesos em zero — usando os padrões.")
 
+    ativos, avisos_ind = troca_indicadores(sb)
+
     return {"dt_sel": dt_sel, "tcb_sel": tcb_sel, "seg_sel": seg_sel,
             "porte_min": porte_min, "pesos": pesos, "perfil": perfil,
-            "limiar": limiar, "cobertura": cobertura}
+            "limiar": limiar, "cobertura": cobertura,
+            "ativos": ativos, "avisos_indicadores": avisos_ind}
+
+
+def troca_indicadores(sb) -> tuple[dict[str, list[str]], list[str]]:
+    """Troca de indicador AO VIVO: escolhe quais 6 compoem cada pergunta.
+
+    O painel calcula TODOS os indicadores do catalogo e os guarda na base, entao
+    trocar um por outro nao recalcula nada -- muda apenas quais colunas alimentam o
+    score. O ponto de partida vem de indicadores.toml; aqui a troca e por sessao.
+
+    A regra do trabalho (exatamente 6 por pergunta) e imposta pelo controle: com
+    numero diferente de 6, o painel avisa e mantem a selecao anterior.
+    """
+    partida, avisos = catalogo.carrega_ativos()
+    sb.markdown("<div class='filtro-titulo'>Trocar indicadores</div>",
+                unsafe_allow_html=True)
+    sb.markdown(
+        "<div class='filtro-ajuda'>Cada pergunta usa exatamente 6 indicadores. "
+        "O catálogo tem 12 por eixo — a troca é imediata e não recalcula a base.</div>",
+        unsafe_allow_html=True)
+
+    ativos: dict[str, list[str]] = {}
+    rotulo_eixo = {"crescimento": "P1 · Crescimento", "concentracao": "P2 · Concentração",
+                   "deterioracao": "P3 · Deterioração"}
+
+    with sb.expander("Escolher os 6 de cada pergunta"):
+        for eixo in catalogo.EIXOS:
+            opcoes = [i.chave for i in catalogo.do_eixo(eixo)]
+            escolha = st.multiselect(
+                rotulo_eixo.get(eixo, eixo),
+                opcoes,
+                default=[c for c in partida[eixo] if c in opcoes],
+                format_func=catalogo.rotulo,
+                key=f"ind_{eixo}",
+                help="Escolha exatamente 6. Passe o mouse na tabela do glossário "
+                     "para ver fonte e fórmula de cada um.")
+            if len(escolha) != 6:
+                avisos.append(f"{rotulo_eixo.get(eixo, eixo)}: {len(escolha)} "
+                              f"selecionados, a regra exige 6 — mantida a seleção anterior")
+                ativos[eixo] = partida[eixo]
+            else:
+                ativos[eixo] = escolha
+
+        st.markdown(
+            "<div class='filtro-ajuda' style='margin-top:8px'>A seleção vale só nesta "
+            "sessão. Para fixá-la, edite <code>indicadores.toml</code> na raiz do "
+            "projeto.</div>", unsafe_allow_html=True)
+
+    trocados = {e: [c for c in ativos[e] if c not in partida[e]] for e in catalogo.EIXOS}
+    n_trocas = sum(len(v) for v in trocados.values())
+    if n_trocas:
+        sb.markdown(
+            f"<div class='filtro-resumo'><b>{n_trocas}</b> indicador(es) trocado(s) "
+            f"nesta sessão:<br>" +
+            "<br>".join(f"<b>{rotulo_eixo[e][:2]}</b> + " +
+                        ", ".join(catalogo.rotulo(c) for c in v)
+                        for e, v in trocados.items() if v) +
+            "</div>", unsafe_allow_html=True)
+
+    return ativos, avisos

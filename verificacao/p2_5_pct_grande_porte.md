@@ -1,20 +1,20 @@
-# Nota de verificação — P2 · Exposição a tomadores de grande porte
+# Nota de verificação — P2 · Carteira PJ em grande porte
 
 `p2_5_pct_grande_porte`
 
 | campo | conteúdo |
 |---|---|
 | Pergunta | **P2** |
-| Fonte primária | IF.data · Carteira de crédito ativa PJ por porte do tomador |
-| Campos de origem | `pj_porte_grande`, `pj_total_porte` |
-| Fórmula | `carteira PJ em tomadores de grande porte / total da carteira PJ` |
-| Referência de comparação | Mediana dos pares do mesmo TCB; p75 do universo = 24,1% |
+| Fonte primária | IF.data · Carteira PJ por porte do tomador |
+| Campos de origem |  |
+| Fórmula | `carteira PJ em tomadores de grande porte ÷ total PJ do mesmo relatório` |
+| Referência de comparação | PJ-only: IFs sem carteira PJ ficam vazias, não zero |
 | Unidade | razão, % ou p.p. conforme a fórmula acima |
 | Deflator | **Não altera o resultado.** É uma razão entre valores da mesma data-base: o fator do IPCA aparece no numerador e no denominador e se cancela. O cálculo usa as colunas `_real` por consistência, mas o número seria idêntico em termos nominais. |
 | Recorte | IF.data trimestral por instituição; universo fixado em `00_fontes_confirmadas.md` §2 |
 | Janela | 201903 – 202603 (29 trimestres) |
 | Data de extração (UTC) | 2026-08-12T00:23:41Z |
-| Rastreabilidade do bruto | `data_raw/manifesto_coleta.csv` — 973 arquivos com URL e SHA-256 |
+| Rastreabilidade do bruto | `data_raw/manifesto_coleta.csv` — 974 arquivos com URL e SHA-256 |
 
 ## Contas COSIF de origem
 
