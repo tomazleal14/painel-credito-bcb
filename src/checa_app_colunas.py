@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 
+import catalogo
 from comum import DATA_PROC
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -41,21 +42,35 @@ def main() -> int:
             print(f"    - {c}")
         return 1
 
-    # A regra do trabalho e EXATAMENTE 6 indicadores por pergunta. Colunas com sufixo de
-    # letra apos o numero (ex.: p3_1b) sao VARIANTES DE REGIME CONTABIL do mesmo indicador,
-    # nao indicadores adicionais: p3_1b e a medida AA-H (ate 202412) do indicador P3 nº 1,
+    # A regra do trabalho e EXATAMENTE 6 indicadores por pergunta. Ela vale sobre a
+    # SELECAO ATIVA (indicadores.toml), nao sobre o arquivo: a troca ao vivo exige que
+    # as 36 colunas do catalogo estejam publicadas, para que qualquer uma possa entrar
+    # sem reprocessar a base. Contar colunas do parquet mediria o pool, nao a regra.
+    # Colunas com sufixo de letra apos o numero (ex.: p3_1b) sao VARIANTES DE REGIME
+    # CONTABIL do mesmo indicador: p3_1b e a medida AA-H (ate 202412) do indicador P3 nº 1,
     # que nao pode ser encadeada com a medida ECL. Nao entra no score nem na contagem.
-    inds = sorted(c for c in df.columns if re.fullmatch(r"p[123]_\d+_\w+", c))
+    pool = sorted(c for c in df.columns if re.fullmatch(r"p[123]_\d+_\w+", c))
     variantes = sorted(c for c in df.columns if re.fullmatch(r"p[123]_\d+[a-z]_\w+", c))
+    ativos, avisos = catalogo.carrega_ativos()
 
-    print(f"\nindicadores (contam para a regra dos 6 por pergunta): {len(inds)}")
+    print(f"\npool disponivel para troca ao vivo (colunas publicadas): {len(pool)}")
+    for p, eixo in (("P1", "crescimento"), ("P2", "concentracao"), ("P3", "deterioracao")):
+        print(f"  {p}: {len([c for c in pool if c.startswith(p.lower())])} candidatos")
+
+    print("\nselecao ativa (indicadores.toml) -- e aqui que vale a regra dos 6")
     erro_regra = False
-    for p in ("p1", "p2", "p3"):
-        do_p = [c for c in inds if c.startswith(p)]
-        marca = "OK" if len(do_p) == 6 else "FORA DA REGRA"
-        if len(do_p) != 6:
+    for p, eixo in (("P1", "crescimento"), ("P2", "concentracao"), ("P3", "deterioracao")):
+        do_p = list(ativos[eixo])
+        fora_do_pool = [c for c in do_p if c not in df.columns]
+        marca = "OK" if len(do_p) == 6 and not fora_do_pool else "FORA DA REGRA"
+        if marca != "OK":
             erro_regra = True
-        print(f"  {p.upper()}: {len(do_p)} [{marca}] -> {', '.join(c[3:] for c in do_p)}")
+        print(f"  {p}: {len(do_p)} [{marca}] -> {', '.join(c[3:] for c in do_p)}")
+        for c in fora_do_pool:
+            print(f"        ativo mas AUSENTE do arquivo publicado: {c}")
+
+    for a in avisos:
+        print(f"  aviso do catalogo: {a}")
 
     if variantes:
         print(f"\nvariantes de regime (NAO contam): {len(variantes)}")

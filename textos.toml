@@ -98,8 +98,93 @@ toda comparação de 12 meses que atravessa essa data ficaria contaminada).
 
 [series.concentracao]
 curta = """
-**Série completa.** Os quatro indicadores de concentração comparam valores do mesmo
-trimestre, então não dependem de histórico e não são afetados pela quebra de 2025.
+**Série completa**, mas com um degrau. Os quatro indicadores comparam valores do mesmo
+trimestre, então não dependem de histórico nem são afetados pela quebra de 2025 — o
+patamar entre 2022Q3 e 2024Q4 tem outra causa, explicada abaixo.
+"""
+
+# ---------------------------------------------------------------------------
+#  Justificativa por INDICADOR, quando a serie dele e mais curta que a do eixo.
+#  Aparece na tabela de cobertura da aba da pergunta.
+# ---------------------------------------------------------------------------
+[series_indicador]
+p1_1_cresc_real_aa = """
+Precisa de quatro trimestres anteriores, então só começa em 2020Q1. Anulado em 2025 pela
+quebra de definição da carteira.
+"""
+p1_2_credit_gap = """
+O filtro HP precisa de 12 trimestres de série. Anulado em 2025 porque a tendência é
+estimada sobre o **nível** da carteira, e o degrau da Res. 4.966 entraria na tendência.
+"""
+p1_3_trim_consec_acima = """
+Derivado do crescimento anual: herda o início em 2020 e a anulação de 2025.
+"""
+p1_4_cresc_carteira_sobre_capital = """
+**A série mais curta do painel.** Depende do Patrimônio de Referência, publicado apenas
+no universo prudencial (tipo 1009), que começa em 2023Q3 — e ainda precisa de quatro
+trimestres anteriores para calcular o crescimento do capital. Sobram 2024Q3, 2024Q4 e
+2026Q1.
+"""
+p1_5_cresc_alto_risco_aa = """
+Precisa de quatro trimestres anteriores da carteira PF por modalidade. Anulado em 2025.
+"""
+p1_6_var_share_pp = """
+Precisa de quatro trimestres anteriores. Anulado em 2025: a participação de mercado
+mudaria só pela troca de universo (1005 para 1009).
+"""
+p3_1_inadimplencia = """
+Só existe no regime de perda esperada, a partir de 2025Q1.
+"""
+p3_4_inadimplencia_ajustada = """
+Compara o atraso com a carteira de quatro trimestres antes; ambas as pontas precisam
+existir no regime ECL.
+"""
+p3_5_ativos_problematicos = """
+Só existe no regime de perda esperada, a partir de 2025Q1.
+"""
+p3_6_folga_capital_pp = """
+Depende do Índice de Basileia, publicado no universo prudencial (tipo 1009).
+"""
+
+# ---------------------------------------------------------------------------
+#  Notas de quebra estrutural que NAO sao falta de dado -- degraus que a serie
+#  tem por composicao. Aparecem sob a tabela de cobertura da pergunta.
+# ---------------------------------------------------------------------------
+[quebra.crescimento]
+nota = """
+**O score de P1 não tem sempre o mesmo tamanho.** Em 2019 só existem **2** indicadores —
+abaixo do mínimo de 3, então o eixo não tem score. De 2020Q1 a 2024Q2 ele é a média de
+**5** percentis. Em 2024Q3–Q4 e em 2026Q1, de **6**, porque só aí existe o indicador de
+carteira ÷ capital. Em 2025 nenhum dos seis sobrevive à quebra da Res. 4.966, e o eixo
+volta a ficar sem score.
+
+A entrada do sexto indicador em 2024Q3 desloca o score de todas as instituições ao mesmo
+tempo — é um **degrau de composição, não de risco**. Comparar o nível do score entre 2022
+e 2026 exige lembrar que a régua mudou de tamanho no caminho. A seleção das instituições
+do trimestre corrente não é afetada: ela usa só o corte transversal de 2026Q1, onde os
+seis indicadores existem para todos.
+"""
+
+[quebra.concentracao]
+nota = """
+**O patamar entre 2022Q3 e 2024Q4 é uma única instituição: o BNDES.** Com R$ 325 bilhões
+de carteira, ele sozinho responde por quase toda a diferença entre 0,7% e 5,4%. O que
+mudou nele não foi concentração: foi a razão carteira ÷ captações passar de 1,10× para
+1,18×, o suficiente para o percentil desse indicador ir de 0,50 a 1,00. Com três
+indicadores válidos (o BNDES não tem carteira PF), o score foi de 0,583 para **exatamente
+0,750** — o valor do corte. Em 2025 a razão cai para 0,66× na troca de universo e ele
+volta a "atenção".
+
+Duas lições que valem para todo o painel: com poucas instituições sinalizadas e
+ponderação por tamanho, **uma sozinha move a série**; e um score que pousa exatamente no
+corte torna a classificação sensível a variações mínimas.
+"""
+
+[quebra.deterioracao]
+nota = """
+A série cobre apenas 5 trimestres, então não há tendência a interpretar — só nível. A
+seleção das instituições, porém, usa exclusivamente o corte transversal do trimestre
+corrente e não depende do histórico.
 """
 
 [series.deterioracao]

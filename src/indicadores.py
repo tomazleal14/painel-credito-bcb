@@ -279,6 +279,11 @@ def calcula() -> pd.DataFrame:
     # ---- anula o que atravessa a quebra de definicao da carteira (ver QUEBRA_DEFINICAO) ----
     contaminadas = _mascara_quebra(df["data_base"])
     COMPARAM_COM_T4 = [
+        # o credit gap nao compara com t-4, mas tambem nao sobrevive a quebra: o filtro
+        # HP e ajustado sobre o NIVEL da carteira, e o degrau de definicao entra na
+        # tendencia estimada. Sem isto, P1 exibia dado em 2025 contradizendo a propria
+        # justificativa de que a janela esta contaminada.
+        "p1_2_credit_gap",
         "p1_1_cresc_real_aa", "p1_3_trim_consec_acima",
         "p1_4_cresc_carteira_sobre_capital", "p1_5_cresc_alto_risco_aa",
         "p1_6_var_share_pp", "p1_7_cresc_ativo_aa", "p1_8_cresc_captacoes_aa",

@@ -10,6 +10,7 @@ TEMA ISOLADO em src/tema.py e .streamlit/config.toml.
 """
 from __future__ import annotations
 
+import math
 import sys
 from pathlib import Path
 
@@ -24,7 +25,8 @@ import cartoes
 import catalogo
 import filtros
 import textos as _textos
-from scoring import EIXOS, PESOS_PADRAO, agenda, agenda_grandes, calcula_scores
+from scoring import (EIXOS, FRACAO_MINIMA, MIN_INDICADORES, PESOS_PADRAO, agenda,
+                     agenda_grandes, calcula_scores)
 from tema import (ALTURA_GRAFICO, ALTURA_GRAFICO_GRANDE, ICONE_SEMAFORO,
                   SEMAFORO, TEMA, layout_base, monta_css)
 
@@ -461,6 +463,96 @@ NOTAS_CARTAO = {
 }
 
 
+def faixas_de_trimestres(dts: list[int]) -> str:
+    """Agrupa data-bases em intervalos CONTIGUOS: '03/2019 a 12/2019 e 03/2025 a 12/2025'.
+
+    Existe porque as lacunas de P1 sao duas, separadas por cinco anos com score. Escrever
+    'da primeira a ultima' descreveria um buraco continuo que nao existe.
+    """
+    def prox(d: int) -> int:
+        a, m = divmod(d, 100)
+        return a * 100 + m + 3 if m < 12 else (a + 1) * 100 + 3
+
+    grupos: list[list[int]] = []
+    for d in sorted(int(x) for x in dts):
+        if grupos and prox(grupos[-1][-1]) == d:
+            grupos[-1].append(d)
+        else:
+            grupos.append([d])
+
+    partes = [fmt_trimestre(g[0]) if len(g) == 1
+              else f"{fmt_trimestre(g[0])} a {fmt_trimestre(g[-1])}" for g in grupos]
+    return partes[0] if len(partes) == 1 else ", ".join(partes[:-1]) + f" e {partes[-1]}"
+
+
+def cobertura_indicadores(eixo: str, cols: list[str]) -> None:
+    """Quantos trimestres cada indicador do eixo cobre, e por quê.
+
+    Existe porque os indicadores de uma mesma pergunta NÃO têm a mesma série: em P1,
+    carteira ÷ capital tem 3 trimestres e credit gap tem 25. Isso muda o tamanho do
+    score ao longo do tempo — um degrau de composição que precisa ficar visível.
+    """
+    hist = scored[scored["carteira_credito_real"] >= porte_min]
+    dts = sorted(hist["data_base"].unique())
+
+    linhas = []
+    for c in cols:
+        pres = [d for d in dts
+                if hist.loc[hist["data_base"] == d, c].notna().any()] if c in hist else []
+        just = T.bruto(f"series_indicador.{c}", "")
+        linhas.append({
+            "Indicador": catalogo.rotulo(c),
+            "Trimestres": len(pres),
+            "de": len(dts),
+            "Período": (f"{fmt_trimestre(pres[0])} a {fmt_trimestre(pres[-1])}"
+                        if pres else "—"),
+            "Por que não é a série toda":
+                just if not just.startswith("(") else "cobre toda a janela do painel",
+        })
+    tab = pd.DataFrame(linhas)
+
+    # so contam os trimestres em que o score EXISTE: onde a instituicao nao atinge o
+    # minimo de indicadores (metade dos ativos, piso 2) o score e descartado, e anunciar
+    # esse n no titulo sugeriria um score que o painel nao publica.
+    com_score = hist[hist[f"score_{eixo}"].notna()]
+    n_por_trim = com_score.groupby("data_base")[f"n_ind_{eixo}"].median()
+    variacao = sorted(int(v) for v in n_por_trim.dropna().unique() if v > 0)
+    sem_score = sorted(set(hist["data_base"]) - set(com_score["data_base"]))
+
+    with st.expander(
+            f"Cobertura de cada indicador · o score deste eixo usa "
+            f"{'/'.join(str(v) for v in variacao) or '—'} indicadores conforme o trimestre",
+            expanded=False):
+        st.dataframe(
+            tab, width='stretch', hide_index=True, height=60 + 38 * len(tab),
+            column_config={
+                "Trimestres": st.column_config.NumberColumn(
+                    "Trim.", width="small", format="%d",
+                    help="Quantos trimestres do painel têm dado para este indicador."),
+                "de": st.column_config.NumberColumn("de", width="small", format="%d"),
+                "Período": st.column_config.TextColumn("Período", width="small"),
+                "Por que não é a série toda": st.column_config.TextColumn(
+                    "Por que a série é essa", width="large"),
+            })
+        minimo = max(MIN_INDICADORES, math.ceil(len(cols) * FRACAO_MINIMA))
+        faixa = ""
+        if sem_score:
+            faixa = (f" Sem score em {faixas_de_trimestres(sem_score)}: nesses trimestres "
+                     f"nenhuma instituição chega ao mínimo, e a minissérie mostra "
+                     f"<b>lacuna</b> em vez de ligar os pontos.")
+        st.markdown(
+            f"<div class='rodape-fonte'>O score é a média dos percentis "
+            f"<b>disponíveis</b>: um indicador ausente reduz o divisor, não entra como "
+            f"zero. Para o score existir, a instituição precisa de ao menos "
+            f"<b>{minimo} dos {len(cols)}</b> indicadores deste eixo.{faixa}</div>",
+            unsafe_allow_html=True)
+
+        nota = T.txt(f"quebra.{eixo}.nota", "")
+        if nota and not nota.startswith("("):
+            st.markdown(f"<div class='cartao-just' style='font-size:12px'>{nota}</div>",
+                        unsafe_allow_html=True)
+
+
 def tabela_sinalizadas(eixo: str, cols: list[str]) -> None:
     """Quem foi sinalizado neste eixo, com o valor de cada indicador e o percentil.
 
@@ -566,6 +658,7 @@ def faixa_cartoes(pergunta: str) -> None:
     st.markdown(
         f"<div class='aviso'><b>Cobertura da série neste eixo.</b> "
         f"{T.txt(f'series.{eixo}.curta', '')}</div>", unsafe_allow_html=True)
+    cobertura_indicadores(eixo, cols)
     tabela_sinalizadas(eixo, cols)
 
 

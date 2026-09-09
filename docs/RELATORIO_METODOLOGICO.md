@@ -105,7 +105,20 @@ P1; o alternativo seria publicar crescimento produzido pela mudança contábil. 
 correção, a carteira exposta nesses trimestres cai para 1,4%–2,0%, e **2026Q1 — a
 data-base padrão do painel — não é afetada**, porque suas duas pontas são pós-quebra.
 
-Reprodução: `src/diagnostica_salto.py` e `src/checa_virada.py`.
+São 14 os indicadores anulados nesses quatro trimestres, e o mascaramento apaga 5.514
+linhas de comparação anual.
+
+**O credit gap também entra na lista, embora não seja uma razão `t/t−4`.** O filtro
+Hodrick-Prescott (λ = 1600) é ajustado sobre o **nível** da carteira, que é exatamente
+onde está o degrau de definição. Um salto de +9,2% num trimestre entra na estimativa da
+tendência e o hiato resultante mede a mudança contábil, não o ciclo de crédito — a
+tendência suavizada não acompanha o degrau, então o nível pós-quebra aparece como hiato
+positivo grande. Por isso `p1_2_credit_gap` está em `COMPARAM_COM_T4` apesar do nome da
+constante. Efeito: a série do credit gap cai de 29 para 25 trimestres, e a série de
+crescimento da Visão geral passa a exibir **21 de 29 trimestres, 03/2020 a 03/2026**, com
+2025 vazio.
+
+Reprodução: `src/diagnostica_salto.py`, `src/checa_virada.py` e `src/checa_serie_cartao.py`.
 
 ### 3.2 Mínimo de indicadores por eixo
 
@@ -131,6 +144,48 @@ A minissérie desenha **lacuna** nesses trechos, em vez de ligar os pontos: unir
 inventaria uma queda e uma recuperação que não aconteceram. O delta de 12 meses também é
 suprimido quando alguma das pontas cai numa lacuna.
 
+### 3.2b O score não tem o mesmo tamanho em todos os trimestres
+
+Os seis indicadores de uma pergunta **não começam juntos**. Em P1:
+
+| indicador de P1 | trimestres | período |
+|---|---|---|
+| Crescimento real a.a. | 21 | 03/2020 – 03/2026 |
+| Credit gap | 25 | 03/2020 – 03/2026 |
+| Trimestres consecutivos > 15% | 25 | 03/2019 – 03/2026 |
+| **Carteira ÷ capital** | **3** | 09/2024, 12/2024, 03/2026 |
+| Crescimento do alto risco a.a. | 21 | 03/2020 – 03/2026 |
+| Ganho de market share | 21 | 03/2020 – 03/2026 |
+
+**Por que carteira ÷ capital tem só 3 trimestres.** O denominador é o Patrimônio de
+Referência, que só existe no relatório **Informações de Capital**, publicado no tipo 1009
+a partir de **2023Q3**. O indicador é um *crescimento* da razão, então precisa de mais
+quatro trimestres anteriores: o primeiro valor possível é 2024Q3. Dos cinco trimestres
+seguintes, 2025Q1–2025Q4 caem na máscara da Res. 4.966 (§3.1). Sobram 2024Q3, 2024Q4 e
+2026Q1. Não é dado faltante nem erro de extração — é a idade da própria série na fonte.
+
+**A consequência tem que ser lida junto com a série.** Como o score de um eixo é a média
+dos percentis **disponíveis**, o número de indicadores que o sustenta muda ao longo do
+tempo:
+
+| janela | indicadores disponíveis | score de P1 |
+|---|---|---|
+| 2019Q1–2019Q4 | 2 (credit gap, trimestres seguidos) | **não existe** — abaixo do mínimo de 3 |
+| 2020Q1–2024Q2 | 5 | média de 5 percentis |
+| 2024Q3–2024Q4 | 6 | média de 6 percentis |
+| 2025Q1–2025Q4 | 0 | **não existe** — máscara da Res. 4.966 |
+| 2026Q1 | 6 | média de 6 percentis |
+
+A entrada de carteira ÷ capital em 2024Q3 é, portanto, um **degrau de composição**: o
+score muda de tamanho, não de risco. Quem lê a minissérie de P1 como uma trajetória
+contínua de risco lê errado nesse ponto — e é por isso que o painel declara
+explicitamente, em cada página de pergunta, o expander **"Cobertura de cada indicador · o
+score deste eixo usa 5/6 indicadores conforme o trimestre"**, com a tabela acima, a regra
+do mínimo e a justificativa por indicador (`textos.toml`, seção `[series_indicador]`).
+
+Reprodução: `src/checa_cobertura_ind.py --eixo crescimento` (idem para `concentracao` e
+`deterioracao`).
+
 ### 3.3 Como as séries são exibidas
 
 As três séries têm tamanhos diferentes — 21, 29 e 5 trimestres —, o que a linha original
@@ -152,13 +207,49 @@ Cada cartão declara a cobertura (`21 de 29 trimestres · 03/2020 a 03/2026 · m
 traz, logo abaixo, a **justificativa** de por que a série é incompleta. O mesmo texto
 abre a aba da pergunta correspondente, e é editável em `textos.toml`, seção `[series]`.
 
-### 3.4 Sobre os degraus de P2
+### 3.4 P2 tem série completa e mesmo assim tem quebra estrutural — por quê
 
-Os saltos da minissérie de concentração **não são erro de cálculo** — a cobertura dos
-quatro indicadores é estável em toda a janela. São granulosidade: com 3 a 12 instituições
-sinalizadas e ponderação por tamanho, uma única instituição grande move a série inteira.
-O patamar de ~5% entre 2022Q3 e 2024Q4 é, essencialmente, **o BNDES** (R$ 325 bi) dentro
-do conjunto sinalizado; ele sai na virada de universo de 2025 e a série volta a 0,8%.
+Este é o caso que mais engana, porque as duas afirmações são verdadeiras ao mesmo tempo:
+a série de concentração cobre **29 de 29 trimestres** (03/2019 a 03/2026, sem lacuna) e,
+ainda assim, o gráfico da Visão geral tem um patamar visível entre 2022Q3 e 2024Q4. Não é
+contradição, e **não é erro de cálculo** — a cobertura dos indicadores de P2 é estável em
+toda a janela (o expander de cobertura mostra **4 indicadores em todos os trimestres**,
+sem o degrau de composição que P1 e P3 têm).
+
+A explicação é de **granulosidade do conjunto sinalizado**, não da série. O número de
+destaque é *carteira exposta*: a soma da carteira das instituições sinalizadas, sobre a
+carteira do recorte. Com apenas 3 a 12 instituições sinalizadas em concentração, **uma
+única instituição grande entrando ou saindo move a série inteira**. O patamar de ~5% é,
+essencialmente, **o BNDES**:
+
+| data-base | score P2 do BNDES | semáforo | o que mudou | carteira exposta |
+|---|---|---|---|---|
+| 2022Q2 | 0,583 | médio | carteira ÷ captações em 1,10× (percentil 0,500) | 0,7% |
+| 2022Q3 | **0,750** | **alto** | razão sobe a 1,18× → percentil 0,500 **→ 1,000** | **5,4%** |
+| 2025Q1 | 0,500 | médio | razão cai a 0,66× → percentil 0,250 | 0,8% |
+
+Três leituras que precisam ficar juntas:
+
+1. **O degrau é do numerador, não do denominador.** Os R$ 325 bi de carteira do BNDES
+   sozinhos explicam a passagem de 0,7% para 5,4%. Nada aconteceu com as outras
+   instituições nem com a definição da série.
+2. **O que moveu o score foi um percentil, e um só.** A razão carteira ÷ captações passou
+   de 1,10× para 1,18× — variação pequena no indicador, mas suficiente para levar o BNDES
+   ao topo do seu grupo de pares. O percentil é **posição relativa**, e uma posição pode
+   saltar de 0,50 para 1,00 com um movimento marginal quando o grupo é apertado.
+3. **O score do BNDES foi calculado sobre 3 indicadores válidos, não 6** (ele não tem
+   carteira PF, o que zera os indicadores de composição PF). Está acima do mínimo de
+   metade exigido em §3.2, então é um score legítimo — mas é um score estreito, e a média
+   de 3 percentis é mais volátil que a de 6.
+
+Ou seja: a quebra de 2022–2025 em P2 é **quebra de composição do conjunto sinalizado**,
+não quebra contábil (§3.1) nem quebra de cobertura (§3.2b). Por isso o texto de P2 em
+`textos.toml` diz "**Série completa**, mas com um degrau" — a série está inteira; o que
+muda é *quem* ela está somando. Este é também o argumento para ler a Visão geral como
+mapa de atenção e a agenda como decisão: um patamar de carteira exposta que depende de uma
+instituição não é um fato sobre o sistema.
+
+Reprodução: `src/diagnostica_score.py` e `src/checa_cobertura_ind.py --eixo concentracao`.
 
 ---
 
