@@ -15,8 +15,8 @@ import numpy as np
 import pandas as pd
 
 import catalogo
-from tema import (SEMAFORO, SEMAFORO_SOFT, TEMA, barra_composicao,
-                  legenda_composicao, sparkline)
+from tema import (COMPOSICAO_CORES, SEMAFORO, SEMAFORO_SOFT, TEMA,
+                  barra_composicao, legenda_composicao, sparkline)
 from textos import md_html
 
 # FORMATO e derivado do catalogo, para nao haver duas listas de indicadores no projeto.
@@ -273,15 +273,42 @@ def composicao_carteira(df_atual: pd.DataFrame, eixo: str) -> list[tuple]:
                 f"{'instituição' if len(d) == 1 else 'instituições'} · "
                 f"R$ {num(v / 1e9, 1)} bi = {num(v / tot * 100, 1)}% da carteira do "
                 f"recorte.&#10;&#10;{DICA_NIVEL[nivel]}")
-        fatias.append((ROTULO_NIVEL[nivel], v, SEMAFORO[nivel], dica))
+        fatias.append((ROTULO_NIVEL[nivel], v, COMPOSICAO_CORES[nivel], dica))
     return fatias
 
 
-def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
+def exposta_no_trimestre(df_atual: pd.DataFrame, eixo: str) -> float:
+    """Carteira exposta a risco alto NO TRIMESTRE SELECIONADO, em % do recorte.
+
+    Antes o numero de destaque saia de `carteira_exposta(df_hist).dropna().iloc[-1]` --
+    o ultimo trimestre COM DADO da serie inteira, e nao o trimestre escolhido na barra
+    lateral. O cartao entao exibia 2026Q1 mesmo com 12/2025 selecionado, ao lado de uma
+    barra de composicao que obedecia a selecao: dois trimestres no mesmo cartao.
+
+    Retorna NaN, nao zero, quando nenhuma instituicao do recorte tem score neste eixo:
+    zero diria "nada em risco alto", quando o correto e "nao da para avaliar".
+    """
+    col_sem, col_score = f"sem_{eixo}", f"score_{eixo}"
+    if col_sem not in df_atual.columns or "carteira_credito_real" not in df_atual.columns:
+        return float("nan")
+    if col_score in df_atual.columns and not df_atual[col_score].notna().any():
+        return float("nan")
+    tot = float(df_atual["carteira_credito_real"].sum())
+    if tot <= 0:
+        return float("nan")
+    alto = float(df_atual.loc[df_atual[col_sem] == "alto", "carteira_credito_real"].sum())
+    return alto / tot * 100
+
+
+def cartao_eixo(df_atual: pd.DataFrame, eixo: str,
                 rotulo: str, descricao: str, glossario: dict | None = None,
                 n_percentis: int | None = None,
                 componentes: list[str] | None = None) -> str:
     """Cartao de um EIXO na Visao geral: numero de destaque -> composicao -> por que.
+
+    Recebe SO o corte do trimestre selecionado (`df_atual`). O historico saiu junto com
+    a minisserie, e manter um `df_hist` aqui era o que permitia o cartao ler um
+    trimestre no numero e outro na composicao.
 
     Nao tem serie temporal. As tres series tem 21, 29 e 5 trimestres, e as duas
     primeiras tem lacuna no meio -- de modo que o cartao gastava metade da altura com
@@ -294,28 +321,44 @@ def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
     """
     col_sem = f"sem_{eixo}"
 
-    serie = carteira_exposta(df_hist, eixo)
-    _val = serie.dropna()
-    valor = float(_val.iloc[-1]) if len(_val) else float("nan")
+    valor = exposta_no_trimestre(df_atual, eixo)
+    avaliavel = pd.notna(valor)
 
     n_alto = int((df_atual[col_sem] == "alto").sum()) if col_sem in df_atual else 0
     n_tot = int(df_atual[col_sem].isin(["alto", "medio", "baixo"]).sum()) if col_sem in df_atual else 0
 
     # faixas de exposicao da carteira -- nao sao percentis, sao fatias do recorte
-    nivel = "alto" if valor >= 20 else "medio" if valor >= 5 else "baixo"
+    nivel = ("alto" if valor >= 20 else "medio" if valor >= 5 else "baixo") \
+        if avaliavel else "sem"
     cor, soft = SEMAFORO[nivel], SEMAFORO_SOFT[nivel]
 
     fatias = composicao_carteira(df_atual, eixo)
     composicao = barra_composicao(fatias) if fatias else ""
     legenda = legenda_composicao(fatias) if fatias else ""
 
+    selo = (f"{n_alto} de {n_tot} IFs" if avaliavel else "sem score")
+    releitura = ("da carteira do recorte está em instituições sinalizadas neste eixo"
+                 if avaliavel else
+                 "nenhuma instituição do recorte pode ser avaliada neste eixo neste "
+                 "trimestre")
+
     n_sem = int((df_atual[col_sem] == "sem").sum()) if col_sem in df_atual else 0
-    nota_sem = (
-        f"<div class='comp-nota'>{n_sem} "
-        f"{'instituição fica' if n_sem == 1 else 'instituições ficam'} em "
-        f"<b>não avaliável</b> neste eixo — sem indicadores suficientes no trimestre. "
-        f"{'Ela não conta' if n_sem == 1 else 'Elas não contam'} como risco baixo."
-        f"</div>") if n_sem else ""
+    if not avaliavel:
+        nota_sem = (
+            f"<div class='comp-nota'>Todas as <b>{n_sem}</b> instituições do recorte "
+            f"ficam sem score neste eixo neste trimestre — nenhuma tem metade dos "
+            f"indicadores com dado. O painel não publica score sobre fragmento, e por "
+            f"isso o número fica vazio em vez de zero: <b>não é ausência de risco, é "
+            f"ausência de medida.</b> O porquê está na página da pergunta.</div>")
+    elif n_sem:
+        nota_sem = (
+            f"<div class='comp-nota'>{n_sem} "
+            f"{'instituição fica' if n_sem == 1 else 'instituições ficam'} em "
+            f"<b>não avaliável</b> neste eixo — sem indicadores suficientes no trimestre. "
+            f"{'Ela não conta' if n_sem == 1 else 'Elas não contam'} como risco baixo."
+            f"</div>")
+    else:
+        nota_sem = ""
 
     # Decomposicao: a mediana de cada indicador NAS INSTITUICOES SINALIZADAS -- as
     # mesmas que formam o numero de destaque. Antes a mediana era de todo o recorte, o
@@ -339,20 +382,29 @@ def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
         partes.append(f"{nome} <b>{v_sinal}</b> "
                       f"<span class='ref'>(recorte {v_todas})</span>")
 
-    comp_txt = (f"por que estas {n_alto} foram sinalizadas — mediana delas em cada um dos "
-                f"<b>{n_percentis}</b> indicadores que formam o score:"
-                if n_percentis else "componentes:")
+    if not avaliavel:
+        # sem sinalizadas, a mediana delas e vazia em todos os indicadores: o travessao
+        # e a leitura correta, e o valor do recorte ao lado mostra o que ainda existe
+        comp_txt = ("nenhuma instituição foi sinalizada neste trimestre — resta o valor "
+                    "do recorte, nos indicadores que ainda têm dado:")
+    elif n_percentis:
+        comp_txt = (f"por que estas {n_alto} foram sinalizadas — mediana delas em cada "
+                    f"um dos <b>{n_percentis}</b> indicadores que formam o score:")
+    else:
+        comp_txt = "componentes:"
+
+    unidade = (f'<span class="unidade" title="Soma da carteira das instituições '
+               f'sinalizadas como risco alto neste eixo, dividida pela carteira total '
+               f'do recorte.">%</span>') if avaliavel else ""
 
     return f"""
     <div class="cartao">
       <div class="cartao-topo">
         <span class="cartao-rotulo">{rotulo}</span>
-        <span class="selo" style="background:{soft};color:{cor}">{n_alto} de {n_tot} IFs</span>
+        <span class="selo" style="background:{soft};color:{cor}">{selo}</span>
       </div>
-      <div class="cartao-valor" style="color:{cor}">{num(valor, 1)}<span
-        class="unidade" title="Soma da carteira das instituições sinalizadas como risco alto neste eixo, dividida pela carteira total do recorte.">%</span></div>
-      <div class="cartao-escala">da carteira do recorte está em instituições sinalizadas
-        neste eixo</div>
+      <div class="cartao-valor" style="color:{cor}">{num(valor, 1)}{unidade}</div>
+      <div class="cartao-escala">{releitura}</div>
       <div class="cartao-releitura">{descricao}</div>
       <div class="comp-titulo">Composição da carteira · {rotulo.lower()}</div>
       <div class="cartao-comp-barra">{composicao}</div>

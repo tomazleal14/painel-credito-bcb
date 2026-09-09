@@ -40,7 +40,7 @@ LIMIAR_BOOM = 0.15
 # atualizou" olhando a tela. VERSAO muda a cada alteracao que mexe nos numeros; a
 # impressao digital e do arquivo de dados. Se o que aparece no rodape da barra lateral
 # do Cloud nao bater com o local, o Cloud esta atrasado -- e nao ha o que depurar.
-VERSAO = "2026-09-09 · Visão geral centrada na composição da carteira"
+VERSAO = "2026-09-09b · cartão da Visão geral obedece ao trimestre selecionado"
 
 st.set_page_config(page_title="Painel de Supervisão de Crédito — BCB",
                    page_icon="◧", layout="wide",
@@ -251,7 +251,7 @@ with aba0:
         with cols_eixo[i]:
             st.markdown(
                 cartoes.cartao_eixo(
-                    hist, univ, eixo,
+                    univ, eixo,
                     T.txt(f"eixos.{eixo}.rotulo", eixo.capitalize()),
                     T.txt(f"eixos.{eixo}.descricao", ""),
                     glossario=gloss_ind,
@@ -290,29 +290,54 @@ with aba0:
     # sintese factual do trimestre, calculada -- nao escrita a mao.
     # Ordena a pressao por CARTEIRA EXPOSTA, nao por contagem de instituicoes: 54
     # cooperativas pequenas sinalizadas pesam menos que um grande banco sinalizado.
-    exposta = {e: cartoes.carteira_exposta(univ, e) for e in EIXOS}
-    exposta = {e: (float(s.iloc[-1]) if len(s) else 0.0) for e, s in exposta.items()}
+    # Mesmo numero dos cartoes, medido no MESMO trimestre. NaN significa eixo nao
+    # avaliavel no trimestre -- nao entra na disputa de "maior pressao", porque um eixo
+    # sem medida nao pode ser declarado o menor nem o maior.
+    exposta = {e: cartoes.exposta_no_trimestre(univ, e) for e in EIXOS}
     n_alto = {e: int((univ[f"sem_{e}"] == "alto").sum()) for e in EIXOS}
-    pior = max(exposta, key=exposta.get)
     rot = {e: T.bruto(f"eixos.{e}.rotulo", e).lower() for e in EIXOS}
+    medidos = {e: v for e, v in exposta.items() if pd.notna(v)}
+    vazios = [rot[e] for e in EIXOS if e not in medidos]
+
+    def _exp(e: str) -> str:
+        return (f"<b>{cartoes.num(exposta[e], 1)}%</b>" if e in medidos
+                else "<b>sem medida</b>")
+
+    if medidos:
+        pior = max(medidos, key=medidos.get)
+        frase_pior = (f"a maior pressão vem de <b>{rot[pior]}</b> "
+                      f"({n_alto[pior]} instituições sinalizadas)")
+        if vazios:
+            frase_pior += (f", entre os eixos que podem ser medidos — "
+                           f"{' e '.join(vazios)} "
+                           f"{'está' if len(vazios) == 1 else 'estão'} sem score neste "
+                           f"trimestre")
+    else:
+        frase_pior = ("nenhum eixo pode ser avaliado neste trimestre — todos ficam sem "
+                      "score, e a comparação entre eles não existe")
+
     quadrante = univ[(univ["p1_1_cresc_real_aa"] > univ["p1_1_cresc_real_aa"].median())
                      & (univ["p3_1_inadimplencia"] < univ["p3_1_inadimplencia"].median())]
     carteira_quadrante = (quadrante["carteira_credito_real"].sum()
                           / univ["carteira_credito_real"].sum() * 100
                           if univ["carteira_credito_real"].sum() else 0.0)
-    st.markdown(
-        f"<div class='aviso'><b>Neste recorte ({fmt_trimestre(dt_sel)}):</b> "
-        f"a carteira exposta a risco alto é de "
-        f"<b>{cartoes.num(exposta['crescimento'], 1)}%</b> em crescimento, "
-        f"<b>{cartoes.num(exposta['concentracao'], 1)}%</b> em concentração e "
-        f"<b>{cartoes.num(exposta['deterioracao'], 1)}%</b> em deterioração — "
-        f"a maior pressão vem de <b>{rot[pior]}</b> "
-        f"({n_alto[pior]} instituições sinalizadas). "
+    frase_quadrante = (
         f"<b>{len(quadrante)}</b> instituições, com "
         f"<b>{cartoes.num(carteira_quadrante, 1)}%</b> da carteira, estão no "
         f"quadrante-assinatura de P3 — crescem acima da mediana e ainda exibem "
         f"inadimplência abaixo dela, que é onde o efeito denominador costuma esconder "
-        f"perda futura.</div>",
+        f"perda futura."
+        if len(quadrante) else
+        "O quadrante-assinatura de P3 não pode ser montado neste trimestre: ele cruza "
+        "crescimento real com inadimplência, e um dos dois não tem dado aqui.")
+
+    st.markdown(
+        f"<div class='aviso'><b>Neste recorte ({fmt_trimestre(dt_sel)}):</b> "
+        f"a carteira exposta a risco alto é de "
+        f"{_exp('crescimento')} em crescimento, "
+        f"{_exp('concentracao')} em concentração e "
+        f"{_exp('deterioracao')} em deterioração — {frase_pior}. "
+        f"{frase_quadrante}</div>",
         unsafe_allow_html=True)
 
     with st.expander("O que cada indicador mede — glossário dos 18"):

@@ -77,6 +77,19 @@ SEMAFORO_SOFT = {
     "baixo": TEMA["baixo_soft"],
     "sem":   TEMA["surface_2"],
 }
+# Preenchimento de AREA GRANDE (barra de composicao da Visao geral).
+# As cores de SEMAFORO sao calibradas para TEXTO sobre branco -- precisam de contraste
+# alto, e por isso sao escuras. Em area grande elas viram outra coisa: o ambar #8A5A0B
+# le como marrom e fica a mesma distancia visual do verde #166B43, de modo que as duas
+# maiores fatias da barra nao se separam. Estas sao as mesmas tres famílias (vermelho,
+# ambar, verde) em versao mais clara e saturada, que e o que area grande pede.
+# A convencao do projeto continua valendo: vermelho/ambar/verde SO para risco.
+COMPOSICAO_CORES = {
+    "alto":  "#D0342C",   # vermelho nitido
+    "medio": "#E9A93C",   # ambar dourado -- separa do verde sem virar marrom
+    "baixo": "#2E9C6A",   # verde claro
+    "sem":   "#C3CFD4",   # cinza-teal, ausencia e nao nivel de risco
+}
 ICONE_SEMAFORO = {"alto": "●", "medio": "●", "baixo": "●", "sem": "○"}
 ROTULO_SEMAFORO = {"alto": "risco alto", "medio": "atenção",
                    "baixo": "baixo", "sem": "sem dado"}
@@ -276,8 +289,10 @@ def barra_composicao(fatias, largura: int = 200, altura: int = 30) -> str:
     porcentagem no rotulo, a dica saia repetida ("risco alto -- 7.2% da carteira:
     7.2%") e com ponto decimal, fora do padrao pt-BR do resto do painel.
 
-    Fatia com largura suficiente recebe a porcentagem escrita DENTRO, em branco: a
-    barra passa a ser legivel sem depender do mouse nem da legenda.
+    SEM texto dentro das fatias. O SVG usa preserveAspectRatio="none" para a barra
+    esticar ate a largura da coluna -- o que estica o glifo junto, na mesma proporcao
+    (viewBox de 200px renderizado a ~400px deforma a fonte em 2x na horizontal). As
+    porcentagens ficam na legenda, em HTML, onde a fonte nao sofre transformacao.
     """
     norm = [(f[0], f[1], f[2], f[3] if len(f) > 3 else None) for f in fatias]
     total = sum(max(v, 0) for _, v, _, _ in norm)
@@ -289,16 +304,9 @@ def barra_composicao(fatias, largura: int = 200, altura: int = 30) -> str:
         w = max(val, 0) / total * largura
         if w <= 0:
             continue
-        pct = val / total * 100
-        titulo = dica if dica is not None else f"{rot}: {_pct_br(pct)}%"
+        titulo = dica if dica is not None else f"{rot}: {_pct_br(val / total * 100)}%"
         partes.append(f'<rect x="{x:.2f}" y="0" width="{w:.2f}" height="{altura}" '
                       f'fill="{cor}"><title>{titulo}</title></rect>')
-        # 34px comporta "99,9%" no corpo de 10px sem encostar nas bordas da fatia
-        if w >= 34:
-            partes.append(
-                f'<text x="{x + w / 2:.2f}" y="{altura / 2 + 3.5:.1f}" fill="#FFFFFF" '
-                f'font-size="10" font-weight="600" text-anchor="middle" '
-                f'style="pointer-events:none">{_pct_br(pct)}%</text>')
         x += w
     return (f'<svg width="{largura}" height="{altura}" viewBox="0 0 {largura} {altura}" '
             f'preserveAspectRatio="none" style="display:block;width:100%;'

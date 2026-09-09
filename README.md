@@ -201,6 +201,13 @@ verificacao/       uma nota por fonte/indicador
 4. **Auditoria de integridade.** `src/audita_raw.py` — 941 arquivos, 0 inválidos.
 5. **Validação cruzada.** `src/valida_cruzada.py` — confronto com SGS e SCR.
 6. **Pendência é campo vazio.** O que não foi confirmado fica vazio e registrado, nunca estimado.
+7. **Um cartão, um trimestre.** `src/checa_trimestre_cartao.py` percorre as 29 data-bases e
+   exige que o número de destaque da Visão geral (a) seja o do trimestre selecionado, (b) bata
+   com a fatia "risco alto" da barra de composição e (c) fique **vazio**, nunca zero, onde
+   nenhuma instituição tem score. Existe por causa de um bug real: o número vinha do último
+   trimestre com dado da série, e não mudava ao trocar a data-base.
+8. **Cobertura por indicador.** `src/checa_cobertura_ind.py --eixo <eixo>` mostra quantos
+   trimestres cada indicador cobre e quantos sustentam o score em cada data-base.
 
 ## Fontes
 
