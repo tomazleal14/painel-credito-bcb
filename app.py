@@ -459,6 +459,74 @@ NOTAS_CARTAO = {
 }
 
 
+def tabela_sinalizadas(eixo: str, cols: list[str]) -> None:
+    """Quem foi sinalizado neste eixo, com o valor de cada indicador e o percentil.
+
+    Fecha o circuito da pergunta: os cartões dizem o QUE distingue as sinalizadas, e
+    esta tabela diz QUAIS são. Sem ela, o eixo termina num agregado sem nomes.
+    """
+    marc = univ[univ[f"sem_{eixo}"] == "alto"].sort_values(
+        f"score_{eixo}", ascending=False)
+    rot = T.bruto(f"eixos.{eixo}.rotulo", eixo).lower()
+
+    with st.expander(f"As {len(marc)} instituições sinalizadas em {rot} — "
+                     f"valor e percentil de cada indicador", expanded=False):
+        if marc.empty:
+            st.info("Nenhuma instituição atinge risco alto neste eixo, com os filtros atuais.")
+            return
+
+        linhas = []
+        for r in marc.itertuples():
+            reg = {
+                "#": int(getattr(r, f"score_{eixo}") * 0) + len(linhas) + 1,
+                "Instituição": r.instituicao,
+                "TCB": r.tcb,
+                "Carteira (R$ bi)": r.carteira_credito_real / 1e9,
+                "Score do eixo": getattr(r, f"score_{eixo}"),
+            }
+            for c in cols:
+                meta = catalogo.POR_CHAVE[c]
+                v = getattr(r, c, None)
+                p = getattr(r, f"pct_{c}", None)
+                reg[meta.rotulo] = (f"{cartoes.num(v * meta.fator, meta.casas)}"
+                                    f"{meta.unidade}" if pd.notna(v) else "—")
+                reg[f"pct · {meta.rotulo}"] = round(p, 3) if pd.notna(p) else None
+            linhas.append(reg)
+
+        tab = pd.DataFrame(linhas)
+        conf = {
+            "#": st.column_config.NumberColumn("#", width="small", format="%d",
+                                               help="Ordem por score do eixo."),
+            "Instituição": st.column_config.TextColumn("Instituição", width="large"),
+            "Carteira (R$ bi)": st.column_config.NumberColumn(
+                "Carteira (R$ bi)", format="%.1f",
+                help=f"Em reais de {fmt_trimestre(BASE_DEFL)}, deflacionada pelo IPCA."),
+            "Score do eixo": st.column_config.ProgressColumn(
+                "Score do eixo", format="%.3f", min_value=0.0, max_value=1.0,
+                help="Média dos percentis dos indicadores deste eixo. ≥ 0,75 = risco alto."),
+        }
+        for c in cols:
+            meta = catalogo.POR_CHAVE[c]
+            conf[f"pct · {meta.rotulo}"] = st.column_config.NumberColumn(
+                f"pct {meta.rotulo[:14]}", format="%.2f",
+                help=f"Percentil de {meta.rotulo} dentro do grupo de pares (mesmo TCB). "
+                     f"{'Invertido: maior é melhor.' if meta.sentido == 'menor_pior' else ''}")
+        st.dataframe(tab, width='stretch', hide_index=True,
+                     height=min(460, 60 + 35 * len(tab)), column_config=conf)
+
+        st.markdown(
+            f"<div class='rodape-fonte'>O <b>percentil</b> é a posição da instituição "
+            f"dentro do seu grupo de pares (mesmo TCB), no trimestre — não no recorte "
+            f"filtrado. Indicadores em que maior é melhor entram invertidos. "
+            f"Um percentil só não sinaliza: é a <b>média</b> deles que compara com "
+            f"0,75.</div>", unsafe_allow_html=True)
+        st.download_button(
+            f"Baixar as sinalizadas em {rot} (CSV)",
+            tab.to_csv(index=False).encode("utf-8-sig"),
+            file_name=f"sinalizadas_{eixo}_{dt_sel}.csv", mime="text/csv",
+            key=f"dl_{eixo}")
+
+
 def faixa_cartoes(pergunta: str) -> None:
     """Os 6 indicadores da pergunta como cartoes: valor, minisserie e faixa do universo."""
     eixo = {"p1": "crescimento", "p2": "concentracao", "p3": "deterioracao"}[pergunta]
@@ -479,12 +547,12 @@ def faixa_cartoes(pergunta: str) -> None:
                 unsafe_allow_html=True)
     n_marc = int((univ[f"sem_{eixo}"] == "alto").sum())
     st.markdown(
-        f"<div class='rodape-fonte'>Os seis cartões descrevem as <b>{n_marc}</b> "
-        f"instituições sinalizadas como risco alto neste eixo — as mesmas que formam o "
-        f"número da Visão geral. Entre parênteses, o valor do recorte inteiro "
-        f"({len(univ)} instituições), como referência. A minissérie acompanha as "
-        f"sinalizadas ao longo dos trimestres.</div>"
-        "<div style='height:10px'></div>", unsafe_allow_html=True)
+        f"<div class='rodape-fonte'>Cada cartão traz os <b>dois</b> valores: a mediana "
+        f"das <b>{n_marc}</b> sinalizadas neste eixo — as mesmas que formam o número da "
+        f"Visão geral — e a do recorte inteiro ({len(univ)} instituições), como "
+        f"referência. A minissérie acompanha as sinalizadas ao longo dos trimestres."
+        f"</div><div style='height:6px'></div>", unsafe_allow_html=True)
+    tabela_sinalizadas(eixo, cols)
 
 
 @st.cache_data(show_spinner=False)

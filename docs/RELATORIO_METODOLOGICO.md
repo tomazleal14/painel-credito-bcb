@@ -83,6 +83,30 @@ de 90 dias. Separadas, a métrica do regime ECL fica a **0,34 p.p.** da série o
 
 O painel marca cada linha com `regime_contabil` e **não traça série contínua** entre os dois.
 
+### 3.1 A quebra também atinge o crescimento
+
+A mesma resolução trocou a conta do Resumo: **"Carteira de Crédito Classificada"** (até
+202412) passou a **"Carteira de Crédito"** (2025+). Não é só o rótulo — é outra medida.
+Verificado dentro do **mesmo** universo prudencial, sem troca de tipo:
+
+| | 202412 | 202503 | variação num trimestre |
+|---|---|---|---|
+| Itaú | R$ 1.088,0 bi | R$ 1.187,8 bi | **+9,2%** |
+| universo | R$ 7,57 tri | R$ 7,65 tri | +1,1% |
+
+Um degrau de nível desse tamanho contamina toda comparação de 12 meses que o atravesse.
+O efeito era visível e grave: a carteira exposta a risco de crescimento saltava para
+**40,7%** entre 2025Q1 e 2025Q4, com Itaú, Bradesco e BNDES sinalizados como risco alto
+de crescimento — o que é falso.
+
+**Regra adotada:** todo indicador que compara `t` com `t−4` fica **vazio** nas data-bases
+2025Q1 a 2025Q4 (`TRIMESTRES_CONTAMINADOS` em `src/indicadores.py`). Perde-se um ano de
+P1; o alternativo seria publicar crescimento produzido pela mudança contábil. Após a
+correção, a carteira exposta nesses trimestres cai para 1,4%–2,0%, e **2026Q1 — a
+data-base padrão do painel — não é afetada**, porque suas duas pontas são pós-quebra.
+
+Reprodução: `src/diagnostica_salto.py` e `src/checa_virada.py`.
+
 ---
 
 ## 4. Os 18 indicadores

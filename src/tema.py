@@ -262,6 +262,20 @@ def _css(t: dict) -> str:
   .cartao-escala {{ font-size: 10.5px; color: {TEMA['texto_3']}; margin: -2px 0 6px 0;
                     letter-spacing: 0.01em; }}
 
+  /* par sinalizadas x recorte: os dois valores lado a lado, o do recorte em corpo
+     menor e cor secundaria -- e referencia, nao protagonista */
+  .cartao-par {{ display: flex; gap: 18px; align-items: baseline; margin: 4px 0 2px 0; }}
+  .par-col {{ display: flex; flex-direction: column; }}
+  .par-rot {{ font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+              color: {TEMA['texto_3']}; font-weight: 570; }}
+  .par-val {{ font-size: 19px; font-weight: 570; color: {TEMA['texto_2']};
+              letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
+              line-height: 1.2; }}
+  .par-val.destaque {{ font-size: {t["cartao_valor"]}px; font-weight: 650;
+                       color: {TEMA['texto']}; letter-spacing: -0.018em; }}
+  .par-val .u {{ font-size: 0.55em; font-weight: 500; color: {TEMA['texto_3']};
+                 margin-left: 2px; }}
+
   /* termo com dica: sublinhado pontilhado indica que ha explicacao ao passar o mouse */
   .termo {{ border-bottom: 1px dotted {TEMA['borda_forte']}; cursor: help; }}
   .termo:hover {{ border-bottom-color: {TEMA['acento']}; color: {TEMA['acento_ink']}; }}

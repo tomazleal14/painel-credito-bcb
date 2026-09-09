@@ -25,7 +25,7 @@
 | regime contábil | preenchimento |
 |---|---|
 | AA-H (Res. 2.682) | 52.7% |
-| Res. 4.966 (ECL) | 59.0% |
+| Res. 4.966 (ECL) | 14.8% |
 
 Observações válidas no último trimestre (202603): **1.025**.
 
@@ -33,9 +33,9 @@ Observações válidas no último trimestre (202603): **1.025**.
 
 | medida | valor |
 |---|---|
-| mediana | -0.0306 |
-| p10 | -0.3931 |
-| p90 | 0.2849 |
+| mediana | -0.0257 |
+| p10 | -0.4110 |
+| p90 | 0.2957 |
 
 ## Como reproduzir
 

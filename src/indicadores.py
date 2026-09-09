@@ -50,6 +50,28 @@ def _hhi_linhas(df: pd.DataFrame, cols: list[str]) -> pd.Series:
     return (shares.pow(2).sum(axis=1) * 10_000).where(total > 0)
 
 
+# --------------------------------------------------------------------------- quebra
+# A Res. CMN 4.966/2021 trocou a conta do Resumo em 202503: "Carteira de Credito
+# Classificada" (ate 202412) passou a "Carteira de Credito". Nao e so nome -- e outra
+# medida. Verificado no PROPRIO painel prudencial, universo constante:
+#     ITAU  202412 R$ 1.088,0 bi  ->  202503 R$ 1.187,8 bi   (+9,2% em UM trimestre)
+#     universo                    +1,1% no mesmo trimestre
+# Um degrau de nivel desses contamina toda comparacao de 12 meses que o atravesse, e
+# por isso a "carteira exposta" de P1 saltou para 40% entre 202503 e 202512, com Itau,
+# Bradesco e BNDES aparecendo como risco alto de crescimento.
+#
+# Regra adotada: indicador que compara t com t-4 fica VAZIO quando a janela cruza a
+# quebra. Perde-se um ano de P1 (4 trimestres), mas o alternativo seria publicar
+# crescimento inventado pela mudanca contabil. 202603 em diante ja e limpo.
+QUEBRA_DEFINICAO = 202503
+TRIMESTRES_CONTAMINADOS = (202503, 202506, 202509, 202512)
+
+
+def _mascara_quebra(datas: pd.Series) -> pd.Series:
+    """True onde a janela de 12 meses cruza a mudanca de definicao da carteira."""
+    return datas.isin(TRIMESTRES_CONTAMINADOS)
+
+
 def _colunas_crescimento(painel: pd.DataFrame) -> pd.DataFrame:
     """Colunas que dependem de comparacao com t-4, calculadas DENTRO de um unico universo.
 
@@ -253,6 +275,23 @@ def calcula() -> pd.DataFrame:
     df["p3_12_retorno_sobre_pl"] = (df["lucro_liquido_real"]
                                     / df["patrimonio_liquido_real"].where(
                                         df["patrimonio_liquido_real"] > 0))
+
+    # ---- anula o que atravessa a quebra de definicao da carteira (ver QUEBRA_DEFINICAO) ----
+    contaminadas = _mascara_quebra(df["data_base"])
+    COMPARAM_COM_T4 = [
+        "p1_1_cresc_real_aa", "p1_3_trim_consec_acima",
+        "p1_4_cresc_carteira_sobre_capital", "p1_5_cresc_alto_risco_aa",
+        "p1_6_var_share_pp", "p1_7_cresc_ativo_aa", "p1_8_cresc_captacoes_aa",
+        "p1_9_cresc_clientes_aa", "p1_10_cresc_pj_aa", "p1_11_aceleracao_pp",
+        "p1_12_cresc_ticket_aa", "p3_4_inadimplencia_ajustada",
+        "p3_11_var_inadimplencia_pp",
+    ]
+    for c in COMPARAM_COM_T4:
+        if c in df.columns:
+            df.loc[contaminadas, c] = np.nan
+    print(f"  quebra Res. 4.966: {int(contaminadas.sum())} linhas em "
+          f"{list(TRIMESTRES_CONTAMINADOS)} tiveram os {len(COMPARAM_COM_T4)} indicadores "
+          f"de comparacao anual anulados")
 
     df = df.drop(columns=[c for c in ["_alto_risco_real", "_atraso_real", "_provisao_real",
                                       "_niveis_eh_real", "_carteira_defasada", "_ticket"]

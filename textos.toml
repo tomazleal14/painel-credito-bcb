@@ -441,6 +441,15 @@ em poucos nomes e verificação de limites de grandes exposições ficam fora do
 O indicador é **PJ-only**: instituições sem carteira PJ (emissores puros de cartão) ficam com
 o campo vazio e não pontuam nesse item.
 
+**2b. Não mede crescimento entre 2025Q1 e 2025Q4.** A Res. 4.966 mudou a conta do Resumo
+em 01/2025: "Carteira de Crédito Classificada" virou "Carteira de Crédito", e não é só o
+nome. Verificado no próprio painel, com universo constante: a carteira do Itaú salta de
+R$ 1.088,0 bi para R$ 1.187,8 bi **em um trimestre** (+9,2%), enquanto o universo cresce
+1,1%. Um degrau desse tamanho contamina toda comparação de 12 meses que o atravesse — e
+chegou a marcar Itaú, Bradesco e BNDES como "risco alto de crescimento". Por isso os
+indicadores que comparam com quatro trimestres antes ficam **vazios** nas data-bases
+**2025Q1 a 2025Q4**. De 2026Q1 em diante a série volta a ser comparável.
+
 **3. Não compara 2024 com 2025 em qualidade de crédito.** A Res. CMN 4.966/2021 substituiu a
 classificação AA–H por perda esperada em 01/01/2025, e os relatórios mudaram de universo
 (tipo 1005 → 1009). A validação cruzada mostrou que a soma dos níveis E–H fica cerca de

@@ -142,22 +142,36 @@ def cartao_indicador(df_hist: pd.DataFrame, df_atual: pd.DataFrame, col: str,
     p90 = float(todas.quantile(0.90)) * fator if len(todas) else float("nan")
     med_recorte = float(todas.median()) * fator if len(todas) else float("nan")
 
-    releitura = (f"mediana das <b>{n}</b> sinalizadas em {rotulo_eixo or eixo}"
-                 if tem_marca else f"mediana das {n} instituições do recorte")
-    referencia = (f"recorte ({len(todas)} IFs): <b>{num(med_recorte, casas)}</b>{unidade} "
-                  f"· faixa {num(p10, casas)} a {num(p90, casas)} (p10–p90)")
+    # Os DOIS valores lado a lado: as sinalizadas (que explicam a selecao) e o recorte
+    # inteiro (a referencia). Sem o par, o cartao ou descreve a populacao errada ou
+    # esconde a base de comparacao.
+    if tem_marca:
+        par = f"""
+      <div class="cartao-par">
+        <div class="par-col">
+          <div class="par-rot">sinalizadas ({n})</div>
+          <div class="par-val destaque">{num(valor, casas)}<span class="u">{unidade}</span></div>
+        </div>
+        <div class="par-col">
+          <div class="par-rot">recorte ({len(todas)})</div>
+          <div class="par-val">{num(med_recorte, casas)}<span class="u">{unidade}</span></div>
+        </div>
+      </div>
+      <div class="cartao-releitura">medianas · faixa do recorte
+        {num(p10, casas)} a {num(p90, casas)} (p10–p90)</div>"""
+    else:
+        par = f"""
+      <div class="cartao-valor">{num(valor, casas)}<span class="unidade"> {unidade}</span></div>
+      <div class="cartao-releitura">mediana das {n} instituições do recorte</div>"""
 
     return f"""
     <div class="cartao">
       <div class="cartao-topo"><span class="cartao-rotulo termo"
         {f'title="{dica}"' if dica else ''}>{rotulo}</span></div>
-      <div class="cartao-valor">{num(valor, casas)}<span class="unidade"> {unidade}</span></div>
-      <div class="cartao-releitura">{releitura}</div>
+      {par}
       <div class="cartao-spark">{spark}</div>
       <div class="cartao-meta" style="color:{cor_delta}">{delta_txt}</div>
-      <div class="cartao-comp">
-        {referencia}{('<br>' + nota) if nota else ''}
-      </div>
+      <div class="cartao-comp">{nota or '&nbsp;'}</div>
     </div>
     """
 
