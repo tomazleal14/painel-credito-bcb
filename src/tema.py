@@ -114,7 +114,8 @@ def layout_base(titulo: str = "", altura: int | None = None) -> dict:
 
 # ---------------------------------------------------------------- sparkline
 def sparkline(valores, largura: int = 168, altura: int = 34,
-              cor: str | None = None, linha_base: float | None = None) -> str:
+              cor: str | None = None, linha_base: float | None = None,
+              piso_zero: bool = False, teto_minimo: float | None = None) -> str:
     """SVG inline de uma minissérie. Leve de proposito: um grafico Plotly por cartao
     deixaria a pagina lenta, e aqui basta a FORMA da serie, nao a leitura precisa.
 
@@ -129,7 +130,15 @@ def sparkline(valores, largura: int = 168, altura: int = 34,
     if len(validos) < 2:
         return f'<svg width="{largura}" height="{altura}"></svg>'
 
+    # ESCALA. Sem ancorar, a autoescala transforma qualquer variacao na altura inteira
+    # do cartao: uma serie que vai de 0,1% a 0,4% era desenhada com o mesmo drama de uma
+    # que vai de 0% a 40%. Para grandezas que sao fatia de um todo, o zero e o piso
+    # honesto; `teto_minimo` evita que uma serie quase plana ocupe tudo assim mesmo.
     lo, hi = min(validos), max(validos)
+    if piso_zero:
+        lo = min(0.0, lo)
+    if teto_minimo is not None:
+        hi = max(hi, teto_minimo)
     span = (hi - lo) or 1.0
     pad = 3
     dx = (largura - 2 * pad) / (len(v) - 1) if len(v) > 1 else 0

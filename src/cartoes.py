@@ -141,8 +141,12 @@ def cartao_indicador(df_hist: pd.DataFrame, df_atual: pd.DataFrame, col: str,
         delta_txt = f"{seta} {num(abs(d), casas)} em 12 meses"
 
     cor_linha = TEMA["acento"]
+    _s = serie.dropna()
     spark = sparkline(list(serie.values), cor=cor_linha,
-                      linha_base=float(serie.median()) if len(serie) else None)
+                      linha_base=float(_s.median()) if len(_s) else None)
+    # amplitude declarada: sem isso, a autoescala faz variacao minima parecer drama
+    faixa_serie = (f"série: {num(_s.min(), casas)} a {num(_s.max(), casas)}{unidade} "
+                   f"em {len(_s)} trim." if len(_s) else "")
 
     p10 = float(todas.quantile(0.10)) * fator if len(todas) else float("nan")
     p90 = float(todas.quantile(0.90)) * fator if len(todas) else float("nan")
@@ -176,6 +180,7 @@ def cartao_indicador(df_hist: pd.DataFrame, df_atual: pd.DataFrame, col: str,
         {f'title="{dica}"' if dica else ''}>{rotulo}</span></div>
       {par}
       <div class="cartao-spark">{spark}</div>
+      <div class="cartao-escala">{faixa_serie}</div>
       <div class="cartao-meta" style="color:{cor_delta}">{delta_txt}</div>
       <div class="cartao-comp">{nota or '&nbsp;'}</div>
     </div>
@@ -255,8 +260,16 @@ def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
     nivel = "alto" if valor >= 20 else "medio" if valor >= 5 else "baixo"
     cor, soft = SEMAFORO[nivel], SEMAFORO_SOFT[nivel]
 
-    spark = sparkline(list(serie.values), cor=cor,
-                      linha_base=float(serie.median()) if len(serie) else None)
+    # escala ancorada no zero: a carteira exposta e fatia de um todo, e sem o piso a
+    # autoescala fazia 0,1%-0,4% parecer um despenhadeiro. `teto_minimo` de 5 p.p.
+    # impede que uma serie quase plana ainda ocupe o cartao inteiro.
+    _s = serie.dropna()
+    spark = sparkline(list(serie.values), cor=cor, piso_zero=True, teto_minimo=5.0,
+                      linha_base=float(_s.median()) if len(_s) else None)
+    faixa_txt = ""
+    if len(_s):
+        faixa_txt = (f"série: {num(_s.min(), 1)}% a {num(_s.max(), 1)}% "
+                     f"em {len(_s)} trimestre{'s' if len(_s) > 1 else ''}")
 
     delta_txt = ""
     if len(serie) >= 5 and pd.notna(serie.iloc[-1]) and pd.notna(serie.iloc[-5]):
@@ -305,6 +318,7 @@ def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
         neste eixo</div>
       <div class="cartao-releitura">{descricao}</div>
       <div class="cartao-spark">{spark}</div>
+      <div class="cartao-escala">{faixa_txt} · escala a partir de 0</div>
       <div class="cartao-meta">{delta_txt} · score mediano {num(score_mediano, 2)}</div>
       <div class="cartao-comp">{comp_txt}<br>{' · '.join(partes)}</div>
     </div>

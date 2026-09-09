@@ -546,12 +546,21 @@ def faixa_cartoes(pergunta: str) -> None:
                     rotulo_eixo=T.bruto(f"eixos.{eixo}.rotulo", eixo).lower()),
                 unsafe_allow_html=True)
     n_marc = int((univ[f"sem_{eixo}"] == "alto").sum())
+    # quantos trimestres a serie deste eixo realmente cobre
+    hist_marc = hist[hist[f"sem_{eixo}"] == "alto"]
+    n_trim = int(hist_marc["data_base"].nunique())
     st.markdown(
         f"<div class='rodape-fonte'>Cada cartão traz os <b>dois</b> valores: a mediana "
         f"das <b>{n_marc}</b> sinalizadas neste eixo — as mesmas que formam o número da "
         f"Visão geral — e a do recorte inteiro ({len(univ)} instituições), como "
-        f"referência. A minissérie acompanha as sinalizadas ao longo dos trimestres."
-        f"</div><div style='height:6px'></div>", unsafe_allow_html=True)
+        f"referência.<br>"
+        f"<b>A seleção das {n_marc} usa apenas o trimestre corrente "
+        f"({fmt_trimestre(dt_sel)}):</b> o percentil de cada indicador é calculado no "
+        f"corte transversal, entre as instituições do mesmo TCB. A minissérie é "
+        f"<i>contexto</i>, não entra no critério — ela cobre {n_trim} trimestre"
+        f"{'s' if n_trim != 1 else ''} e sua escala parte de zero, com a amplitude "
+        f"declarada sob cada gráfico.</div><div style='height:6px'></div>",
+        unsafe_allow_html=True)
     tabela_sinalizadas(eixo, cols)
 
 
