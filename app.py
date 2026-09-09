@@ -40,7 +40,7 @@ LIMIAR_BOOM = 0.15
 # atualizou" olhando a tela. VERSAO muda a cada alteracao que mexe nos numeros; a
 # impressao digital e do arquivo de dados. Se o que aparece no rodape da barra lateral
 # do Cloud nao bater com o local, o Cloud esta atrasado -- e nao ha o que depurar.
-VERSAO = "2026-09-08b · máscara da Res. 4.966 estendida ao credit gap"
+VERSAO = "2026-09-09 · Visão geral centrada na composição da carteira"
 
 st.set_page_config(page_title="Painel de Supervisão de Crédito — BCB",
                    page_icon="◧", layout="wide",
@@ -259,10 +259,18 @@ with aba0:
                     # porque HHI do sistema e CR5 sao iguais para todas as instituicoes
                     # e nao geram percentil. Isso fica declarado no cartao.
                     n_percentis=len(comp_eixo.get(eixo, [])),
-                    componentes=comp_eixo.get(eixo, []),
-                    # por que a série deste eixo tem o tamanho que tem
-                    justificativa=T.txt(f"series.{eixo}.curta", "")),
+                    componentes=comp_eixo.get(eixo, [])),
                 unsafe_allow_html=True)
+    # A cobertura de cada eixo saiu dos cartoes e virou UMA linha para os tres: repetida
+    # em cada cartao, ela ocupava mais espaco que o dado e ainda assim so podia ser lida
+    # comparando os tres textos entre si. O detalhe por indicador esta em P1/P2/P3.
+    st.markdown(
+        f"<div class='rodape-fonte'>Os cartões acima descrevem <b>apenas "
+        f"{fmt_trimestre(dt_sel)}</b> — composição da carteira no trimestre, que está "
+        f"sempre completa. O histórico de cada eixo, com as lacunas que a Res. 4.966 e "
+        f"a idade das séries impõem, fica nas páginas P1, P2 e P3, ao lado da "
+        f"justificativa de cada indicador.</div>",
+        unsafe_allow_html=True)
 
     # ---- o que o numero grande significa (retratil, como o glossario) ----
     with st.expander(T.bruto("sintese.rotulo_expander",
@@ -273,6 +281,9 @@ with aba0:
             f"<br><br><b>Como ler.</b> {T.txt('sintese.como_ler')}"
             f"<br><br><b>Quem é marcado como risco alto.</b> "
             f"{T.txt('sintese.por_que_decompor')}"
+            f"<br><br><b>A barra de composição.</b> {T.txt('sintese.a_composicao')}"
+            f"<br><br><b>Por que não há série histórica aqui.</b> "
+            f"{T.txt('sintese.sem_serie')}"
             f"<br><br><b>Os componentes.</b> {T.txt('sintese.os_componentes')}</div>",
             unsafe_allow_html=True)
 

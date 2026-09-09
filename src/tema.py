@@ -202,6 +202,9 @@ def sparkline(valores, largura: int = 168, altura: int = 34,
             f'{lacunas}{base}{corpo}{ponta}</svg>')
 
 
+# Sem chamador desde que a Visao geral trocou a serie temporal pela composicao da
+# carteira. Mantida porque continua correta e e a forma certa de desenhar serie esparsa
+# (trimestre sem dado nao ganha barra) se o historico voltar a algum cartao.
 def barras(valores, rotulos=None, largura: int = 200, altura: int = 38,
            cor: str | None = None, destaque_ultimo: bool = True) -> str:
     """Minissérie em BARRAS, uma por trimestre.
@@ -257,26 +260,72 @@ def barras(valores, rotulos=None, largura: int = 200, altura: int = 38,
             f'style="display:block;width:100%">{"".join(partes)}{eixo}{marcas}</svg>')
 
 
-def barra_composicao(fatias, largura: int = 200, altura: int = 13) -> str:
-    """Barra horizontal empilhada. `fatias` = [(rotulo, valor, cor), ...].
+def _pct_br(v: float, casas: int = 1) -> str:
+    return f"{v:.{casas}f}".replace(".", ",")
+
+
+def barra_composicao(fatias, largura: int = 200, altura: int = 30) -> str:
+    """Barra horizontal empilhada. `fatias` = [(rotulo, valor, cor)] ou
+    [(rotulo, valor, cor, dica)].
 
     Serve onde a serie temporal falha: esta SEMPRE completa, porque descreve o
     trimestre corrente, e decompoe diretamente o numero de destaque do cartao.
+
+    A `dica` (atributo <title>) e usada VERBATIM quando fornecida. Antes esta funcao
+    sempre concatenava ": {pct}%" ao rotulo -- e como o chamador ja punha a
+    porcentagem no rotulo, a dica saia repetida ("risco alto -- 7.2% da carteira:
+    7.2%") e com ponto decimal, fora do padrao pt-BR do resto do painel.
+
+    Fatia com largura suficiente recebe a porcentagem escrita DENTRO, em branco: a
+    barra passa a ser legivel sem depender do mouse nem da legenda.
     """
-    total = sum(max(v, 0) for _, v, _ in fatias)
+    norm = [(f[0], f[1], f[2], f[3] if len(f) > 3 else None) for f in fatias]
+    total = sum(max(v, 0) for _, v, _, _ in norm)
     if total <= 0:
         return f'<svg width="{largura}" height="{altura}"></svg>'
+
     partes, x = [], 0.0
-    for rot, val, cor in fatias:
+    for rot, val, cor, dica in norm:
         w = max(val, 0) / total * largura
         if w <= 0:
             continue
+        pct = val / total * 100
+        titulo = dica if dica is not None else f"{rot}: {_pct_br(pct)}%"
         partes.append(f'<rect x="{x:.2f}" y="0" width="{w:.2f}" height="{altura}" '
-                      f'fill="{cor}"><title>{rot}: {val/total*100:.1f}%</title></rect>')
+                      f'fill="{cor}"><title>{titulo}</title></rect>')
+        # 34px comporta "99,9%" no corpo de 10px sem encostar nas bordas da fatia
+        if w >= 34:
+            partes.append(
+                f'<text x="{x + w / 2:.2f}" y="{altura / 2 + 3.5:.1f}" fill="#FFFFFF" '
+                f'font-size="10" font-weight="600" text-anchor="middle" '
+                f'style="pointer-events:none">{_pct_br(pct)}%</text>')
         x += w
     return (f'<svg width="{largura}" height="{altura}" viewBox="0 0 {largura} {altura}" '
             f'preserveAspectRatio="none" style="display:block;width:100%;'
-            f'border-radius:2px">{"".join(partes)}</svg>')
+            f'border-radius:3px">{"".join(partes)}</svg>')
+
+
+def legenda_composicao(fatias) -> str:
+    """Legenda da barra de composicao: quadradinho de cor, rotulo e valor.
+
+    A barra empilhada sem legenda exige que se adivinhe a convencao de cor ou se
+    passe o mouse em cada fatia. Fatia estreita (fracao de 1%) e praticamente
+    inalcancavel com o mouse, entao a legenda e a UNICA via de leitura dela.
+    """
+    norm = [(f[0], f[1], f[2], f[3] if len(f) > 3 else None) for f in fatias]
+    total = sum(max(v, 0) for _, v, _, _ in norm)
+    if total <= 0:
+        return ""
+    itens = []
+    for rot, val, cor, dica in norm:
+        pct = max(val, 0) / total * 100
+        t = f' title="{dica}"' if dica else ""
+        itens.append(
+            f'<div class="comp-item"{t}>'
+            f'<span class="comp-cor" style="background:{cor}"></span>'
+            f'<span class="comp-rot">{rot}</span>'
+            f'<span class="comp-val">{_pct_br(pct)}%</span></div>')
+    return f'<div class="comp-legenda">{"".join(itens)}</div>'
 
 
 # ---------------------------------------------------------------- CSS
@@ -390,6 +439,23 @@ def _css(t: dict) -> str:
   .cartao-escala {{ font-size: 10.5px; color: {TEMA['texto_3']}; margin: -2px 0 6px 0;
                     letter-spacing: 0.01em; }}
   .cartao-comp-barra {{ margin: 8px 0 3px 0; }}
+
+  /* ---------- composicao da carteira por nivel de risco (Visao geral) ----------
+     Na Visao geral esta barra e o conteudo principal do cartao, nao um adorno: ela
+     e a unica leitura que esta SEMPRE completa, porque descreve so o trimestre
+     corrente. Por isso ganha titulo, altura e legenda propria. */
+  .comp-titulo {{ font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em;
+                  color: {TEMA['texto_3']}; font-weight: 570; margin: 14px 0 6px 0; }}
+  .comp-legenda {{ display: grid; grid-template-columns: 1fr 1fr; gap: 3px 12px;
+                   margin: 7px 0 2px 0; }}
+  .comp-item {{ display: flex; align-items: center; gap: 6px; font-size: 11px;
+                color: {TEMA['texto_2']}; line-height: 1.5; cursor: help; }}
+  .comp-cor {{ width: 9px; height: 9px; border-radius: 2px; flex: 0 0 9px; }}
+  .comp-rot {{ flex: 1 1 auto; }}
+  .comp-val {{ font-variant-numeric: tabular-nums; font-weight: 600;
+               color: {TEMA['texto']}; }}
+  .comp-nota {{ font-size: 10.5px; color: {TEMA['texto_3']}; line-height: 1.5;
+                margin: 6px 0 0 0; }}
   /* justificativa de serie incompleta: fica visivel, nao escondida em nota de rodape */
   .cartao-just {{ font-size: 10.5px; line-height: 1.5; color: {TEMA['texto_2']};
                   background: {TEMA['surface_2']}; border-left: 2px solid {TEMA['eixo']};

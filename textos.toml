@@ -214,10 +214,18 @@ instituições — o selo ao lado traz a contagem (**54 de 258 IFs**).
 
 como_ler = """
 Ele **pondera por tamanho**, e é por isso que serve à decisão: uma cooperativa de R$ 2
-bilhões sinalizada não move o número; a Caixa sinalizada move muito. Nos últimos
-trimestres a carteira exposta a risco de crescimento foi de 43% para 7% — esse tipo de
-oscilação é o que se quer ver. As faixas usadas: **abaixo de 5%** é baixo, **5% a 20%**
-é atenção, **acima de 20%** é alto.
+bilhões sinalizada não move o número; a Caixa sinalizada move muito. Em Crescimento a
+carteira exposta oscilou entre **3,4% e 7,9%** nos 21 trimestres com dado; em
+Concentração, entre **0,4% e 5,9%**, com um degrau que é uma instituição só (o BNDES,
+explicado na página de P2). As faixas usadas para o semáforo do cartão: **abaixo de 5%**
+é baixo, **5% a 20%** é atenção, **acima de 20%** é alto.
+
+Cuidado com uma comparação que o cartão não autoriza: os três números **não são
+comparáveis entre si em nível**. Cada um usa o corte de score do seu próprio eixo, e os
+eixos têm quantidades diferentes de indicadores disponíveis. 7,2% em Crescimento e 0,2%
+em Deterioração não querem dizer que crescimento é 36 vezes mais grave — querem dizer que
+as instituições que lideram os percentis de crescimento são maiores que as que lideram os
+de deterioração.
 """
 
 por_que_decompor = """
@@ -226,8 +234,48 @@ em quatro passos: (1) o grupo de pares é o conjunto de instituições do mesmo 
 trimestre; (2) cada indicador do eixo vira um **percentil** dentro desse grupo; (3) a
 **média desses percentis** é o score da instituição — indicador sem dado reduz o divisor,
 não conta como zero; (4) score **≥ 0,75** entra como risco alto, e a carteira dela soma
-no número de destaque. O score fica no rodapé do cartão e na agenda, mas não lidera:
-percentil tem mediana 0,50 por construção, então um número derivado dele varia pouco.
+no número de destaque. O score aparece na agenda e nas páginas P1/P2/P3, mas não lidera
+o cartão: percentil tem mediana 0,50 por construção, então um número derivado dele varia
+pouco.
+"""
+
+a_composicao = """
+A barra empilhada reparte **toda a carteira do recorte** entre os quatro estados do
+semáforo, no trimestre selecionado. A legenda abaixo dela traz a cor, o nome e a fatia
+de cada estado; passar o mouse mostra também o número de instituições e o valor em reais.
+As faixas são as do score: **risco alto** é score ≥ 0,75, **atenção** é 0,50 a 0,75,
+**risco baixo** é abaixo de 0,50.
+
+O quarto estado é o que costuma passar despercebido: **não avaliável** não é risco baixo.
+São instituições que, naquele trimestre, não têm metade dos indicadores do eixo com dado
+— o painel se recusa a publicar um score feito de fragmento, e elas ficam de fora tanto
+do numerador quanto do julgamento. Em Deterioração isso muda a leitura: em 03/2026 a
+maior parte da carteira está em **atenção**, e não em risco alto, embora o número de
+destaque seja pequeno.
+
+Esta barra é a única leitura do painel que está **sempre completa**, porque descreve só
+o corte transversal corrente e não depende de histórico nenhum.
+"""
+
+sem_serie = """
+Os cartões da Visão geral **não têm série histórica**, de propósito. Os três eixos cobrem
+números diferentes de trimestres — **21** em Crescimento, **29** em Concentração e **5**
+em Deterioração — e dois deles têm lacuna no meio, não no começo. Postas lado a lado e
+normalizadas para a mesma largura, essas séries sugerem comparação onde não há: uma série
+de 5 pontos parece cobrir o mesmo período de uma de 29, e a lacuna de 2025 em Crescimento
+parece queda.
+
+As causas são três, e nenhuma é falha de extração: (1) a **Res. 4.966/2021** mudou a
+definição da carteira em 2025, e toda comparação de 12 meses que atravessa essa data foi
+anulada — P1 fica vazio em 2025Q1–Q4; (2) **P3 não existe antes de 2025Q1**, porque
+quatro dos seis indicadores dependem do regime de perda esperada; (3) indicadores
+entram em datas diferentes — carteira ÷ capital só tem **3 trimestres**, pois depende do
+Patrimônio de Referência, publicado a partir de 2023Q3.
+
+O histórico continua no painel, com a ressalva ao lado do dado: em **P1, P2 e P3**, cada
+página traz a minissérie de cada indicador, o expander *"Cobertura de cada indicador"*
+com trimestres e motivo de um por um, e a nota da quebra estrutural daquele eixo. Aqui
+fica o retrato do trimestre; lá, a trajetória e o que ela pode e não pode dizer.
 """
 
 os_componentes = """
@@ -568,6 +616,32 @@ disso o eixo fica **vazio**, e a minissérie mostra uma lacuna em vez de uma lin
 um score de 2 indicadores em 6 era exibido como se fosse comparável aos demais. Pela
 mesma regra, P1 não existe antes de 2020Q1 (crescimento precisa de quatro trimestres
 anteriores).
+
+**2d. Os três eixos não cobrem o mesmo período, e o score não tem sempre o mesmo
+tamanho.** Esta é a limitação mais fácil de esquecer, porque não aparece como campo
+vazio: aparece como um número que existe, mas foi calculado sobre uma base diferente da
+do trimestre ao lado.
+
+| eixo | trimestres com dado | de | janela | indicadores no score |
+|---|---|---|---|---|
+| P1 · Crescimento | 21 | 29 | 03/2020 a 03/2026, sem 2025 | 5 ou 6 |
+| P2 · Concentração | 29 | 29 | 03/2019 a 03/2026 | 4 sempre |
+| P3 · Deterioração | 5 | 29 | 03/2025 a 03/2026 | 5 ou 6 |
+
+Três consequências práticas. (i) **Nenhuma comparação entre eixos ao longo do tempo** é
+legítima: P3 tem cinco pontos e P2 tem vinte e nove. (ii) Dentro de P1, o score de 2022 é
+média de **5** percentis e o de 2026 é média de **6** — a entrada de carteira ÷ capital
+em 2024Q3, quando o Patrimônio de Referência passa a existir com quatro trimestres de
+história, desloca o nível de todas as instituições ao mesmo tempo. É degrau de
+composição, não de risco. (iii) Em P2 a série está completa e **ainda assim** tem quebra:
+o patamar de 2022Q3 a 2024Q4 é o BNDES entrando no conjunto sinalizado, e o que mudou
+nele foi um único percentil.
+
+Por isso os cartões da **Visão geral descrevem apenas o trimestre selecionado** — a
+composição da carteira por nível de risco, que está sempre completa. O histórico fica nas
+páginas P1, P2 e P3, onde cada indicador traz a própria justificativa e o expander
+*"Cobertura de cada indicador"* mostra, um a um, quantos trimestres ele cobre e por quê.
+Reprodução: `src/checa_cobertura_ind.py`.
 
 **3. Não compara 2024 com 2025 em qualidade de crédito.** A Res. CMN 4.966/2021 substituiu a
 classificação AA–H por perda esperada em 01/01/2025, e os relatórios mudaram de universo

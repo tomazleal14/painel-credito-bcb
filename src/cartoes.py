@@ -15,8 +15,8 @@ import numpy as np
 import pandas as pd
 
 import catalogo
-from tema import (SEMAFORO, SEMAFORO_SOFT, TEMA, barra_composicao, barras,
-                  sparkline)
+from tema import (SEMAFORO, SEMAFORO_SOFT, TEMA, barra_composicao,
+                  legenda_composicao, sparkline)
 from textos import md_html
 
 # FORMATO e derivado do catalogo, para nao haver duas listas de indicadores no projeto.
@@ -235,17 +235,63 @@ def carteira_exposta(df: pd.DataFrame, eixo: str) -> pd.Series:
     return serie.sort_index()
 
 
+DICA_NIVEL = {
+    "alto": "Score do eixo ≥ 0,75 — quartil superior do grupo de pares (mesmo TCB). "
+            "É esta fatia que forma o número de destaque do cartão.",
+    "medio": "Score do eixo entre 0,50 e 0,75 — acima da mediana do grupo de pares, "
+             "sem atingir o corte de risco alto.",
+    "baixo": "Score do eixo abaixo de 0,50 — na metade inferior do grupo de pares.",
+    "sem": "Sem score neste eixo: a instituição não tem metade dos indicadores do "
+           "eixo com dado no trimestre, e o painel não publica score sobre "
+           "fragmento. Não significa risco baixo — significa não avaliável.",
+}
+ROTULO_NIVEL = {"alto": "Risco alto", "medio": "Atenção",
+                "baixo": "Risco baixo", "sem": "Não avaliável"}
+
+
+def composicao_carteira(df_atual: pd.DataFrame, eixo: str) -> list[tuple]:
+    """Fatias da carteira do trimestre por nivel de risco, com dica pronta.
+
+    Sempre completa: descreve so o corte transversal corrente, entao nao depende de
+    historico e nao e afetada pelas quebras de serie que esvaziam os graficos de
+    trimestre. E a leitura que resta quando a serie temporal nao pode ser lida.
+    """
+    col_sem = f"sem_{eixo}"
+    if col_sem not in df_atual.columns or "carteira_credito_real" not in df_atual.columns:
+        return []
+    tot = float(df_atual["carteira_credito_real"].sum())
+    if tot <= 0:
+        return []
+
+    fatias = []
+    for nivel in ("alto", "medio", "baixo", "sem"):
+        d = df_atual[df_atual[col_sem] == nivel]
+        v = float(d["carteira_credito_real"].sum())
+        if v <= 0:
+            continue
+        dica = (f"{ROTULO_NIVEL[nivel]} · {len(d)} "
+                f"{'instituição' if len(d) == 1 else 'instituições'} · "
+                f"R$ {num(v / 1e9, 1)} bi = {num(v / tot * 100, 1)}% da carteira do "
+                f"recorte.&#10;&#10;{DICA_NIVEL[nivel]}")
+        fatias.append((ROTULO_NIVEL[nivel], v, SEMAFORO[nivel], dica))
+    return fatias
+
+
 def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
                 rotulo: str, descricao: str, glossario: dict | None = None,
                 n_percentis: int | None = None,
-                componentes: list[str] | None = None,
-                justificativa: str = "") -> str:
-    """Cartao de um EIXO, no padrao subindice -> componentes.
+                componentes: list[str] | None = None) -> str:
+    """Cartao de um EIXO na Visao geral: numero de destaque -> composicao -> por que.
 
-    Destaque: CARTEIRA EXPOSTA a risco alto (% do recorte). O score do eixo continua
-    calculado e usado no ranking, mas nao lidera o cartao -- ver `carteira_exposta`.
+    Nao tem serie temporal. As tres series tem 21, 29 e 5 trimestres, e as duas
+    primeiras tem lacuna no meio -- de modo que o cartao gastava metade da altura com
+    um grafico que so podia ser lido depois de tres paragrafos de ressalva (cobertura,
+    justificativa de quebra, aviso de delta ausente). Historico e leitura de P1/P2/P3,
+    onde ha espaco para a ressalva ao lado do dado; aqui fica a composicao da carteira,
+    que descreve o trimestre corrente e esta sempre completa.
+
+    Destaque: CARTEIRA EXPOSTA a risco alto (% do recorte) -- ver `carteira_exposta`.
     """
-    col_score = f"score_{eixo}"
     col_sem = f"sem_{eixo}"
 
     serie = carteira_exposta(df_hist, eixo)
@@ -254,48 +300,22 @@ def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
 
     n_alto = int((df_atual[col_sem] == "alto").sum()) if col_sem in df_atual else 0
     n_tot = int(df_atual[col_sem].isin(["alto", "medio", "baixo"]).sum()) if col_sem in df_atual else 0
-    score_mediano = (float(df_atual[col_score].dropna().median())
-                     if col_score in df_atual and df_atual[col_score].notna().any()
-                     else float("nan"))
 
     # faixas de exposicao da carteira -- nao sao percentis, sao fatias do recorte
     nivel = "alto" if valor >= 20 else "medio" if valor >= 5 else "baixo"
     cor, soft = SEMAFORO[nivel], SEMAFORO_SOFT[nivel]
 
-    # BARRAS, nao linha: trimestre sem dado nao ganha barra, e a ausencia fica legivel
-    # sem inventar continuidade. Altura sempre proporcional ao valor, a partir do zero.
-    _s = serie.dropna()
-    rotulos = [(f"{str(d)[2:4]}" if str(d)[4:6] == "03" else "") for d in serie.index]
-    grafico = barras(list(serie.values), rotulos=rotulos, cor=cor)
+    fatias = composicao_carteira(df_atual, eixo)
+    composicao = barra_composicao(fatias) if fatias else ""
+    legenda = legenda_composicao(fatias) if fatias else ""
 
-    faixa_txt = ""
-    if len(_s):
-        pi, pf = _s.index.min(), _s.index.max()
-        faixa_txt = (f"{len(_s)} de {len(serie)} trimestres · "
-                     f"{str(pi)[4:6]}/{str(pi)[:4]} a {str(pf)[4:6]}/{str(pf)[:4]} · "
-                     f"máx. {num(_s.max(), 1)}%")
-
-    # composicao da carteira do trimestre por nivel de risco -- SEMPRE completa,
-    # porque descreve so o corte transversal atual e nao depende de historico
-    comp_fatias = []
-    if col_sem in df_atual.columns and "carteira_credito_real" in df_atual.columns:
-        tot_cart = df_atual["carteira_credito_real"].sum()
-        for nivel, rot_n in [("alto", "risco alto"), ("medio", "atenção"),
-                             ("baixo", "baixo"), ("sem", "sem dado")]:
-            v = df_atual.loc[df_atual[col_sem] == nivel, "carteira_credito_real"].sum()
-            if tot_cart > 0 and v > 0:
-                comp_fatias.append((f"{rot_n} — {v/tot_cart*100:.1f}% da carteira",
-                                    float(v), SEMAFORO[nivel]))
-    composicao = barra_composicao(comp_fatias) if comp_fatias else ""
-
-    delta_txt = ""
-    if len(serie) >= 5 and pd.notna(serie.iloc[-1]) and pd.notna(serie.iloc[-5]):
-        d = serie.iloc[-1] - serie.iloc[-5]
-        seta = "▲" if d > 0 else ("▼" if d < 0 else "•")
-        rumo = "subindo" if d > 1 else ("cedendo" if d < -1 else "estável")
-        delta_txt = f"{rumo} · {seta} {num(abs(d), 1)} p.p. em 12 meses"
-    elif len(serie) >= 5:
-        delta_txt = "sem comparação de 12 meses (série com lacuna)"
+    n_sem = int((df_atual[col_sem] == "sem").sum()) if col_sem in df_atual else 0
+    nota_sem = (
+        f"<div class='comp-nota'>{n_sem} "
+        f"{'instituição fica' if n_sem == 1 else 'instituições ficam'} em "
+        f"<b>não avaliável</b> neste eixo — sem indicadores suficientes no trimestre. "
+        f"{'Ela não conta' if n_sem == 1 else 'Elas não contam'} como risco baixo."
+        f"</div>") if n_sem else ""
 
     # Decomposicao: a mediana de cada indicador NAS INSTITUICOES SINALIZADAS -- as
     # mesmas que formam o numero de destaque. Antes a mediana era de todo o recorte, o
@@ -334,12 +354,10 @@ def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
       <div class="cartao-escala">da carteira do recorte está em instituições sinalizadas
         neste eixo</div>
       <div class="cartao-releitura">{descricao}</div>
+      <div class="comp-titulo">Composição da carteira · {rotulo.lower()}</div>
       <div class="cartao-comp-barra">{composicao}</div>
-      <div class="cartao-escala">composição da carteira do trimestre por nível de risco</div>
-      <div class="cartao-spark">{grafico}</div>
-      <div class="cartao-escala">{faixa_txt}</div>
-      <div class="cartao-just">{justificativa}</div>
-      <div class="cartao-meta">{delta_txt} · score mediano {num(score_mediano, 2)}</div>
+      {legenda}
+      {nota_sem}
       <div class="cartao-comp">{comp_txt}<br>{' · '.join(partes)}</div>
     </div>
     """
