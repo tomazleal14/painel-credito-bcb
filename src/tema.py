@@ -116,21 +116,40 @@ def layout_base(titulo: str = "", altura: int | None = None) -> dict:
 def sparkline(valores, largura: int = 168, altura: int = 34,
               cor: str | None = None, linha_base: float | None = None) -> str:
     """SVG inline de uma minissérie. Leve de proposito: um grafico Plotly por cartao
-    deixaria a pagina lenta, e aqui basta a FORMA da serie, nao a leitura precisa."""
-    v = [float(x) for x in valores if x is not None and x == x]
-    if len(v) < 2:
-        return (f'<svg width="{largura}" height="{altura}"></svg>')
+    deixaria a pagina lenta, e aqui basta a FORMA da serie, nao a leitura precisa.
 
-    lo, hi = min(v), max(v)
+    Valores ausentes (None/NaN) viram BURACO: a linha e quebrada em segmentos e o
+    trecho sem dado fica marcado com um tracejado fraco. Ligar os pontos por cima de
+    uma lacuna desenharia uma queda e uma recuperacao que nao existiram -- foi o que
+    acontecia na virada da Res. 4.966, quando P1 ficou sem indicadores por 4 trimestres.
+    """
+    bruto = list(valores)
+    v = [None if (x is None or x != x) else float(x) for x in bruto]
+    validos = [x for x in v if x is not None]
+    if len(validos) < 2:
+        return f'<svg width="{largura}" height="{altura}"></svg>'
+
+    lo, hi = min(validos), max(validos)
     span = (hi - lo) or 1.0
     pad = 3
-    dx = (largura - 2 * pad) / (len(v) - 1)
+    dx = (largura - 2 * pad) / (len(v) - 1) if len(v) > 1 else 0
 
     def y(val: float) -> float:
         return altura - pad - (val - lo) / span * (altura - 2 * pad)
 
-    pontos = " ".join(f"{pad + i * dx:.1f},{y(val):.1f}" for i, val in enumerate(v))
     cor = cor or TEMA["acento"]
+
+    # segmentos contiguos de dado presente
+    segmentos, atual = [], []
+    for i, val in enumerate(v):
+        if val is None:
+            if len(atual) > 1:
+                segmentos.append(atual)
+            atual = []
+        else:
+            atual.append((pad + i * dx, y(val)))
+    if len(atual) > 1:
+        segmentos.append(atual)
 
     base = ""
     if linha_base is not None and lo <= linha_base <= hi:
@@ -139,16 +158,39 @@ def sparkline(valores, largura: int = 168, altura: int = 34,
                 f'stroke="{TEMA["eixo"]}" stroke-width="1" stroke-dasharray="2,2" '
                 f'opacity="0.55"/>')
 
-    area = (f'<polygon points="{pad},{altura - pad} {pontos} '
-            f'{largura - pad},{altura - pad}" fill="{cor}" opacity="0.10"/>')
-    ultimo_x = pad + (len(v) - 1) * dx
-    ponta = (f'<circle cx="{ultimo_x:.1f}" cy="{y(v[-1]):.1f}" r="2.6" fill="{cor}"/>')
+    # faixa tracejada onde falta dado, para o buraco ser visivel e nao parecer corte
+    lacunas = ""
+    i = 0
+    while i < len(v):
+        if v[i] is None:
+            j = i
+            while j < len(v) and v[j] is None:
+                j += 1
+            x0, x1 = pad + i * dx, pad + (j - 1) * dx
+            lacunas += (f'<rect x="{x0 - dx/2:.1f}" y="{pad}" '
+                        f'width="{max(x1 - x0 + dx, 2):.1f}" height="{altura - 2*pad}" '
+                        f'fill="{TEMA["eixo"]}" opacity="0.10"/>')
+            i = j
+        else:
+            i += 1
+
+    corpo = ""
+    for seg in segmentos:
+        pts = " ".join(f"{x:.1f},{yy:.1f}" for x, yy in seg)
+        corpo += (f'<polygon points="{seg[0][0]:.1f},{altura - pad} {pts} '
+                  f'{seg[-1][0]:.1f},{altura - pad}" fill="{cor}" opacity="0.10"/>')
+        corpo += (f'<polyline points="{pts}" fill="none" stroke="{cor}" '
+                  f'stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>')
+
+    ponta = ""
+    ultimo = next(((i, x) for i, x in reversed(list(enumerate(v))) if x is not None), None)
+    if ultimo:
+        ponta = (f'<circle cx="{pad + ultimo[0] * dx:.1f}" cy="{y(ultimo[1]):.1f}" '
+                 f'r="2.6" fill="{cor}"/>')
 
     return (f'<svg width="{largura}" height="{altura}" viewBox="0 0 {largura} {altura}" '
-            f'preserveAspectRatio="none" style="display:block">{base}{area}'
-            f'<polyline points="{pontos}" fill="none" stroke="{cor}" '
-            f'stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>'
-            f'{ponta}</svg>')
+            f'preserveAspectRatio="none" style="display:block">'
+            f'{lacunas}{base}{corpo}{ponta}</svg>')
 
 
 # ---------------------------------------------------------------- CSS

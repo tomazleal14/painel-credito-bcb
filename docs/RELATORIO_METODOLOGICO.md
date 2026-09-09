@@ -107,6 +107,38 @@ data-base padrão do painel — não é afetada**, porque suas duas pontas são 
 
 Reprodução: `src/diagnostica_salto.py` e `src/checa_virada.py`.
 
+### 3.2 Mínimo de indicadores por eixo
+
+Anular as comparações anuais deixou P1 com **um** indicador (o credit gap) em 2025 — e o
+score continuava sendo calculado sobre esse fragmento, sinalizando 32 a 46 instituições.
+Um score feito de 1 de 6 indicadores não é a mesma medida que um feito de 6, e compará-los
+no tempo é inválido.
+
+**Regra:** o score de um eixo só existe se a instituição tiver ao menos **metade** dos
+indicadores ativos daquele eixo, com piso de 2 (`FRACAO_MINIMA` e `MIN_INDICADORES` em
+`src/scoring.py`). Abaixo disso o score fica vazio e a instituição não entra em contagem
+nenhuma.
+
+Consequências, todas honestas e antes ocultas:
+
+| eixo | janela sem score | motivo |
+|---|---|---|
+| P1 · Crescimento | 2019Q1–2019Q4 | crescimento exige quatro trimestres anteriores |
+| P1 · Crescimento | 2025Q1–2025Q4 | comparações anuais anuladas pela quebra da Res. 4.966 |
+| P3 · Deterioração | 2019Q1–2024Q4 | quatro dos seis indicadores só existem no regime ECL |
+
+A minissérie desenha **lacuna** nesses trechos, em vez de ligar os pontos: unir as pontas
+inventaria uma queda e uma recuperação que não aconteceram. O delta de 12 meses também é
+suprimido quando alguma das pontas cai numa lacuna.
+
+### 3.3 Sobre os degraus de P2
+
+Os saltos da minissérie de concentração **não são erro de cálculo** — a cobertura dos
+quatro indicadores é estável em toda a janela. São granulosidade: com 3 a 12 instituições
+sinalizadas e ponderação por tamanho, uma única instituição grande move a série inteira.
+O patamar de ~5% entre 2022Q3 e 2024Q4 é, essencialmente, **o BNDES** (R$ 325 bi) dentro
+do conjunto sinalizado; ele sai na virada de universo de 2025 e a série volta a 0,8%.
+
 ---
 
 ## 4. Os 18 indicadores

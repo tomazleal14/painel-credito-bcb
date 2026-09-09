@@ -51,6 +51,12 @@ PESOS_PADRAO = {"crescimento": 0.30, "concentracao": 0.25, "deterioracao": 0.45}
 CORTE_ALTO = 0.75
 CORTE_MEDIO = 0.50
 
+# Quantos indicadores um eixo precisa ter, na instituicao, para que o score exista.
+# Metade dos ativos, com piso de 2. Serve para nao publicar um score de um eixo
+# calculado sobre um fragmento dos seus indicadores -- ver o comentario em calcula_scores.
+FRACAO_MINIMA = 0.5
+MIN_INDICADORES = 2
+
 
 def semaforo(v: float) -> str:
     if pd.isna(v):
@@ -88,8 +94,17 @@ def calcula_scores(df: pd.DataFrame, grupo_pares: str | None = "tcb",
                 if e == eixo and f"pct_{c}" in d.columns]
         # media ignorando ausentes: falta de dado reduz o denominador, nao vira zero
         d[f"score_{eixo}"] = d[cols].mean(axis=1, skipna=True) if cols else np.nan
-        d[f"sem_{eixo}"] = d[f"score_{eixo}"].map(semaforo)
         d[f"n_ind_{eixo}"] = d[cols].notna().sum(axis=1) if cols else 0
+
+        # MINIMO DE INDICADORES: um score feito de 1 de 6 indicadores nao e a mesma
+        # medida que um feito de 6, e comparar os dois no tempo e invalido. Nos
+        # trimestres 2025Q1-2025Q4, com a quebra da Res. 4.966, P1 ficava so com o
+        # credit gap -- e ainda assim sinalizava 32 a 46 instituicoes. Abaixo do
+        # minimo o score fica VAZIO, e a instituicao nao entra em contagem nenhuma.
+        mininimo = max(MIN_INDICADORES, int(np.ceil(len(cols) * FRACAO_MINIMA))) if cols else 0
+        if cols:
+            d.loc[d[f"n_ind_{eixo}"] < mininimo, f"score_{eixo}"] = np.nan
+        d[f"sem_{eixo}"] = d[f"score_{eixo}"].map(semaforo)
 
     partes = [d[f"score_{e}"] * pesos[e] for e in EIXOS]
     pesos_validos = sum(

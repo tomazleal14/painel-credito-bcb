@@ -450,6 +450,15 @@ chegou a marcar Itaú, Bradesco e BNDES como "risco alto de crescimento". Por is
 indicadores que comparam com quatro trimestres antes ficam **vazios** nas data-bases
 **2025Q1 a 2025Q4**. De 2026Q1 em diante a série volta a ser comparável.
 
+**2c. P3 não existe antes de 2025.** Dos seis indicadores de deterioração, quatro
+dependem do regime de perda esperada ou do relatório de capital, que só passam a existir
+em 2025Q1 — sobram apenas provisão ÷ carteira e cobertura, duas medidas da mesma coisa.
+O painel exige **metade dos indicadores** de um eixo para publicar seu score; abaixo
+disso o eixo fica **vazio**, e a minissérie mostra uma lacuna em vez de uma linha. Antes,
+um score de 2 indicadores em 6 era exibido como se fosse comparável aos demais. Pela
+mesma regra, P1 não existe antes de 2020Q1 (crescimento precisa de quatro trimestres
+anteriores).
+
 **3. Não compara 2024 com 2025 em qualidade de crédito.** A Res. CMN 4.966/2021 substituiu a
 classificação AA–H por perda esperada em 01/01/2025, e os relatórios mudaram de universo
 (tipo 1005 → 1009). A validação cruzada mostrou que a soma dos níveis E–H fica cerca de

@@ -86,11 +86,16 @@ def num(v: float, casas: int) -> str:
 
 
 def _serie_mediana(df: pd.DataFrame, col: str) -> pd.Series:
-    """Mediana do universo por trimestre -- a serie que o sparkline desenha."""
+    """Mediana por trimestre -- a serie que o sparkline desenha.
+
+    NAO remove os trimestres vazios: eles precisam chegar como NaN para o sparkline
+    desenhar um buraco. Removê-los encostaria os pontos vizinhos e inventaria uma
+    continuidade que o dado nao tem.
+    """
     if col not in df.columns:
         return pd.Series(dtype=float)
     return (df.replace([np.inf, -np.inf], np.nan)
-              .groupby("data_base")[col].median().dropna().sort_index())
+              .groupby("data_base")[col].median().sort_index())
 
 
 def cartao_indicador(df_hist: pd.DataFrame, df_atual: pd.DataFrame, col: str,
@@ -126,8 +131,9 @@ def cartao_indicador(df_hist: pd.DataFrame, df_atual: pd.DataFrame, col: str,
     n = len(atual)
 
     # variacao contra 4 trimestres atras (mesma data-base do ano anterior)
+    # so compara se AMBAS as pontas existem: com buraco no meio, um delta seria inventado
     delta_txt, cor_delta = "—", TEMA["texto_3"]
-    if len(serie) >= 5:
+    if len(serie) >= 5 and pd.notna(serie.iloc[-1]) and pd.notna(serie.iloc[-5]):
         d = serie.iloc[-1] - serie.iloc[-5]
         piora = (d > 0) if sentido == "maior_pior" else (d < 0)
         cor_delta = TEMA["risco_alto"] if piora else TEMA["risco_baixo"]
@@ -205,13 +211,22 @@ def carteira_exposta(df: pd.DataFrame, eixo: str) -> pd.Series:
     e o que separa uma cooperativa de R$ 2 bi da Caixa.
     """
     col_sem = f"sem_{eixo}"
+    col_score = f"score_{eixo}"
     if col_sem not in df.columns or "carteira_credito_real" not in df.columns:
         return pd.Series(dtype=float)
     g = df.groupby("data_base")
     total = g["carteira_credito_real"].sum()
     alto = (df[df[col_sem] == "alto"].groupby("data_base")["carteira_credito_real"]
               .sum().reindex(total.index, fill_value=0.0))
-    return (alto / total.where(total > 0) * 100).dropna().sort_index()
+    serie = (alto / total.where(total > 0) * 100)
+
+    # Trimestre em que NENHUMA instituicao pode ser avaliada (score do eixo vazio para
+    # todas) nao vale zero: vale BURACO. Zero diria "nada em risco", quando o correto e
+    # "nao da para saber" -- e a minisserie desenharia um mergulho inexistente.
+    if col_score in df.columns:
+        avaliaveis = g[col_score].apply(lambda s: s.notna().sum())
+        serie = serie.where(avaliaveis.reindex(serie.index).fillna(0) > 0)
+    return serie.sort_index()
 
 
 def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
@@ -227,7 +242,8 @@ def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
     col_sem = f"sem_{eixo}"
 
     serie = carteira_exposta(df_hist, eixo)
-    valor = float(serie.iloc[-1]) if len(serie) else float("nan")
+    _val = serie.dropna()
+    valor = float(_val.iloc[-1]) if len(_val) else float("nan")
 
     n_alto = int((df_atual[col_sem] == "alto").sum()) if col_sem in df_atual else 0
     n_tot = int(df_atual[col_sem].isin(["alto", "medio", "baixo"]).sum()) if col_sem in df_atual else 0
@@ -243,11 +259,13 @@ def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
                       linha_base=float(serie.median()) if len(serie) else None)
 
     delta_txt = ""
-    if len(serie) >= 5:
+    if len(serie) >= 5 and pd.notna(serie.iloc[-1]) and pd.notna(serie.iloc[-5]):
         d = serie.iloc[-1] - serie.iloc[-5]
         seta = "▲" if d > 0 else ("▼" if d < 0 else "•")
         rumo = "subindo" if d > 1 else ("cedendo" if d < -1 else "estável")
         delta_txt = f"{rumo} · {seta} {num(abs(d), 1)} p.p. em 12 meses"
+    elif len(serie) >= 5:
+        delta_txt = "sem comparação de 12 meses (série com lacuna)"
 
     # Decomposicao: a mediana de cada indicador NAS INSTITUICOES SINALIZADAS -- as
     # mesmas que formam o numero de destaque. Antes a mediana era de todo o recorte, o
