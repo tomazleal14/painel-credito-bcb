@@ -164,6 +164,24 @@ SGS **continuam versionados** — a rastreabilidade não depende de guardar os b
 2. Subir para um repositório no GitHub.
 3. Em share.streamlit.io, apontar para o repositório, arquivo principal `app.py`.
 
+### Conferir se o Cloud está servindo a versão atual
+
+O Community Cloud já serviu, três vezes, uma versão defasada do repositório — e da tela
+não dava para distinguir "o cálculo está errado" de "o Cloud não atualizou". Por isso o
+rodapé da barra lateral traz um **carimbo de build**:
+
+```
+Build: 2026-09-08b · máscara da Res. 4.966 estendida ao credit gap
+dados 7d451320 · 39.250 linhas · P1 com 21 trimestres
+```
+
+Compare com o local (`streamlit run app.py`). Se o hash de `dados` diferir, ou se **P1
+aparecer com 25 trimestres em vez de 21**, o Cloud está atrasado: em share.streamlit.io,
+menu do app → **Reboot app**. Não há o que depurar nesse caso.
+
+`VERSAO` fica no topo de `app.py` e deve ser alterada em toda mudança que mexa nos
+números.
+
 ## Estrutura
 
 ```

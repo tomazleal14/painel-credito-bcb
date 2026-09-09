@@ -10,6 +10,7 @@ TEMA ISOLADO em src/tema.py e .streamlit/config.toml.
 """
 from __future__ import annotations
 
+import hashlib
 import math
 import sys
 from pathlib import Path
@@ -33,6 +34,13 @@ from tema import (ALTURA_GRAFICO, ALTURA_GRAFICO_GRANDE, ICONE_SEMAFORO,
 DATA_PROC = RAIZ / "data_processed"
 MIN_BASILEIA = 10.5
 LIMIAR_BOOM = 0.15
+
+# Carimbo de build. O Streamlit Cloud ja serviu tres vezes uma versao defasada do
+# repositorio, e nao havia como distinguir "o painel esta errado" de "o Cloud nao
+# atualizou" olhando a tela. VERSAO muda a cada alteracao que mexe nos numeros; a
+# impressao digital e do arquivo de dados. Se o que aparece no rodape da barra lateral
+# do Cloud nao bater com o local, o Cloud esta atrasado -- e nao ha o que depurar.
+VERSAO = "2026-09-08b · máscara da Res. 4.966 estendida ao credit gap"
 
 st.set_page_config(page_title="Painel de Supervisão de Crédito — BCB",
                    page_icon="◧", layout="wide",
@@ -148,6 +156,29 @@ st.sidebar.markdown(
 st.sidebar.caption(
     f"Valores reais em R$ de {fmt_trimestre(BASE_DEFL)}, deflacionados pelo IPCA (SGS 433). "
     f"Universo: IF.data, {fmt_trimestre(min(trimestres))}–{fmt_trimestre(max(trimestres))}.")
+
+
+@st.cache_data(show_spinner=False)
+def impressao_dados() -> str:
+    """Hash curto do arquivo de dados, para identificar o build servido."""
+    alvo = DATA_PROC / "app_indicadores.parquet"
+    if not alvo.exists():
+        alvo = DATA_PROC / "indicadores.parquet"
+    h = hashlib.sha256()
+    with open(alvo, "rb") as fh:
+        for pedaco in iter(lambda: fh.read(1 << 20), b""):
+            h.update(pedaco)
+    return h.hexdigest()[:8]
+
+
+# Quantos trimestres do indicador-âncora de P1 sobrevivem: 21 é a versão com a máscara
+# da Res. 4.966 aplicada, 25 é a versão anterior. É a checagem mais direta de defasagem.
+_trim_p1 = int(ind.loc[ind["p1_1_cresc_real_aa"].notna(), "data_base"].nunique()) \
+    if "p1_1_cresc_real_aa" in ind else 0
+st.sidebar.caption(
+    f"**Build:** {VERSAO}  \n"
+    f"dados `{impressao_dados()}` · {len(ind):,} linhas · "
+    f"P1 com {_trim_p1} trimestres".replace(",", "."))
 
 
 # ------------------------------------------------------------------ cabecalho
