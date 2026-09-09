@@ -94,14 +94,34 @@ def _serie_mediana(df: pd.DataFrame, col: str) -> pd.Series:
 
 
 def cartao_indicador(df_hist: pd.DataFrame, df_atual: pd.DataFrame, col: str,
-                     nota: str = "", glossario: dict | None = None) -> str:
-    """HTML de um cartao de indicador (valor = mediana do universo no trimestre)."""
+                     nota: str = "", glossario: dict | None = None,
+                     eixo: str | None = None, rotulo_eixo: str = "") -> str:
+    """HTML de um cartao de indicador.
+
+    O valor em destaque e a mediana das instituicoes SINALIZADAS naquele eixo -- as
+    mesmas que compoem o numero da Visao geral --, com o recorte inteiro entre
+    parenteses como referencia.
+
+    Antes o cartao mostrava a mediana das 258 do recorte, o que descrevia outra
+    populacao: em 03/2026 exibia inadimplencia de 4,03% (o recorte) sob o titulo de um
+    eixo cujas 10 sinalizadas tinham 8,61%. Nao dava para relacionar o cartao com a
+    selecao, porque de fato nao havia relacao.
+    """
     rotulo, unidade, fator, casas, sentido = FORMATO.get(
         col, (col, "", 1, 2, "neutro"))
     dica = _dica(glossario, col)
 
-    serie = _serie_mediana(df_hist, col) * fator
-    atual = df_atual[col].replace([np.inf, -np.inf], np.nan).dropna() if col in df_atual else pd.Series(dtype=float)
+    col_sem = f"sem_{eixo}" if eixo else None
+    tem_marca = bool(col_sem and col_sem in df_atual.columns)
+    marcadas = df_atual[df_atual[col_sem] == "alto"] if tem_marca else df_atual
+    hist_marc = df_hist[df_hist[col_sem] == "alto"] if (
+        tem_marca and col_sem in df_hist.columns) else df_hist
+
+    serie = _serie_mediana(hist_marc, col) * fator
+    atual = (marcadas[col].replace([np.inf, -np.inf], np.nan).dropna()
+             if col in marcadas else pd.Series(dtype=float))
+    todas = (df_atual[col].replace([np.inf, -np.inf], np.nan).dropna()
+             if col in df_atual else pd.Series(dtype=float))
     valor = float(atual.median()) * fator if len(atual) else float("nan")
     n = len(atual)
 
@@ -118,20 +138,25 @@ def cartao_indicador(df_hist: pd.DataFrame, df_atual: pd.DataFrame, col: str,
     spark = sparkline(list(serie.values), cor=cor_linha,
                       linha_base=float(serie.median()) if len(serie) else None)
 
-    p10 = float(atual.quantile(0.10)) * fator if n else float("nan")
-    p90 = float(atual.quantile(0.90)) * fator if n else float("nan")
+    p10 = float(todas.quantile(0.10)) * fator if len(todas) else float("nan")
+    p90 = float(todas.quantile(0.90)) * fator if len(todas) else float("nan")
+    med_recorte = float(todas.median()) * fator if len(todas) else float("nan")
+
+    releitura = (f"mediana das <b>{n}</b> sinalizadas em {rotulo_eixo or eixo}"
+                 if tem_marca else f"mediana das {n} instituições do recorte")
+    referencia = (f"recorte ({len(todas)} IFs): <b>{num(med_recorte, casas)}</b>{unidade} "
+                  f"· faixa {num(p10, casas)} a {num(p90, casas)} (p10–p90)")
 
     return f"""
     <div class="cartao">
       <div class="cartao-topo"><span class="cartao-rotulo termo"
         {f'title="{dica}"' if dica else ''}>{rotulo}</span></div>
       <div class="cartao-valor">{num(valor, casas)}<span class="unidade"> {unidade}</span></div>
-      <div class="cartao-releitura">mediana das {n} instituições do recorte</div>
+      <div class="cartao-releitura">{releitura}</div>
       <div class="cartao-spark">{spark}</div>
       <div class="cartao-meta" style="color:{cor_delta}">{delta_txt}</div>
       <div class="cartao-comp">
-        faixa do universo: <b>{num(p10, casas)}</b> a <b>{num(p90, casas)}</b> {unidade}
-        (p10–p90){('<br>' + nota) if nota else ''}
+        {referencia}{('<br>' + nota) if nota else ''}
       </div>
     </div>
     """

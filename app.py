@@ -471,10 +471,20 @@ def faixa_cartoes(pergunta: str) -> None:
         alvo = (linha1 if i < 3 else linha2)[i % 3]
         with alvo:
             st.markdown(
-                cartoes.cartao_indicador(hist, univ, c, NOTAS_CARTAO.get(c, ""),
-                                         glossario=T.glossario_indicadores),
+                cartoes.cartao_indicador(
+                    hist, univ, c, NOTAS_CARTAO.get(c, ""),
+                    glossario=T.glossario_indicadores,
+                    eixo=eixo,
+                    rotulo_eixo=T.bruto(f"eixos.{eixo}.rotulo", eixo).lower()),
                 unsafe_allow_html=True)
-    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+    n_marc = int((univ[f"sem_{eixo}"] == "alto").sum())
+    st.markdown(
+        f"<div class='rodape-fonte'>Os seis cartões descrevem as <b>{n_marc}</b> "
+        f"instituições sinalizadas como risco alto neste eixo — as mesmas que formam o "
+        f"número da Visão geral. Entre parênteses, o valor do recorte inteiro "
+        f"({len(univ)} instituições), como referência. A minissérie acompanha as "
+        f"sinalizadas ao longo dos trimestres.</div>"
+        "<div style='height:10px'></div>", unsafe_allow_html=True)
 
 
 @st.cache_data(show_spinner=False)
