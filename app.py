@@ -108,10 +108,20 @@ def fonte(txt: str) -> None:
 # ------------------------------------------------------------------ barra lateral
 trimestres = sorted(ind["data_base"].unique())
 f = filtros.barra_lateral(ind, PESOS_PADRAO, EIXOS)
-dt_sel, tcb_sel = f["dt_sel"], f["tcb_sel"]
-seg_sel, porte_min, pesos = f["seg_sel"], f["porte_min"], f["pesos"]
-limiar, cobertura = f["limiar"], f["cobertura"]
-ativos = f["ativos"]
+# Leitura TOLERANTE das escolhas da barra lateral.
+# Motivo concreto: o Streamlit Cloud ja serviu, duas vezes, uma versao mista dos
+# arquivos -- app.py novo com src/ antigo -- e o painel morreu com KeyError em plena
+# tela. Chave que faltar cai no padrao e o painel avisa, em vez de quebrar.
+_faltando = [k for k in ("dt_sel", "tcb_sel", "seg_sel", "porte_min", "pesos",
+                         "limiar", "cobertura", "ativos") if k not in f]
+dt_sel = f.get("dt_sel", max(ind["data_base"]))
+tcb_sel = f.get("tcb_sel") or sorted(ind["tcb"].dropna().unique())
+seg_sel = f.get("seg_sel") or sorted(ind["segmento_sr"].fillna("").unique())
+porte_min = f.get("porte_min", 1e9)
+pesos = f.get("pesos") or PESOS_PADRAO
+limiar = f.get("limiar", 0.65)
+cobertura = f.get("cobertura", 0.80)
+ativos = f.get("ativos") or {e: catalogo.padrao_do_eixo(e) for e in EIXOS}
 
 # aplica filtros
 base = ind[ind["tcb"].isin(tcb_sel) & ind["segmento_sr"].isin(seg_sel)].copy()
@@ -145,6 +155,15 @@ if T.erro:
              f"```\n{T.erro}\n```")
 elif T.avisos:
     st.warning("Avisos de `textos.toml`: " + " · ".join(T.avisos))
+
+if _faltando:
+    st.warning(
+        f"Versões desencontradas dos arquivos: a barra lateral não devolveu "
+        f"{', '.join('`' + k + '`' for k in _faltando)}. O painel seguiu com os valores "
+        f"padrão. No Streamlit Cloud isso costuma ser deploy defasado — use "
+        f"**Manage app → Reboot app**.")
+for _av in f.get("avisos_indicadores", []):
+    st.warning(f"Seleção de indicadores: {_av}")
 
 st.markdown(
     f"<div class='cabecalho'><h1>{T.txt('cabecalho.titulo')}</h1>"
