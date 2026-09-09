@@ -226,7 +226,9 @@ with aba0:
                     # porque HHI do sistema e CR5 sao iguais para todas as instituicoes
                     # e nao geram percentil. Isso fica declarado no cartao.
                     n_percentis=len(comp_eixo.get(eixo, [])),
-                    componentes=comp_eixo.get(eixo, [])),
+                    componentes=comp_eixo.get(eixo, []),
+                    # por que a série deste eixo tem o tamanho que tem
+                    justificativa=T.txt(f"series.{eixo}.curta", "")),
                 unsafe_allow_html=True)
 
     # ---- o que o numero grande significa (retratil, como o glossario) ----
@@ -561,6 +563,9 @@ def faixa_cartoes(pergunta: str) -> None:
         f"{'s' if n_trim != 1 else ''} e sua escala parte de zero, com a amplitude "
         f"declarada sob cada gráfico.</div><div style='height:6px'></div>",
         unsafe_allow_html=True)
+    st.markdown(
+        f"<div class='aviso'><b>Cobertura da série neste eixo.</b> "
+        f"{T.txt(f'series.{eixo}.curta', '')}</div>", unsafe_allow_html=True)
     tabela_sinalizadas(eixo, cols)
 
 

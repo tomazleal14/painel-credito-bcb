@@ -131,7 +131,28 @@ A minissérie desenha **lacuna** nesses trechos, em vez de ligar os pontos: unir
 inventaria uma queda e uma recuperação que não aconteceram. O delta de 12 meses também é
 suprimido quando alguma das pontas cai numa lacuna.
 
-### 3.3 Sobre os degraus de P2
+### 3.3 Como as séries são exibidas
+
+As três séries têm tamanhos diferentes — 21, 29 e 5 trimestres —, o que a linha original
+escondia: normalizada para a mesma largura, uma série de 5 pontos parecia cobrir o mesmo
+período de uma de 29. Duas mudanças resolveram:
+
+**Barras, não linha.** Cada trimestre é uma barra medida a partir do zero. Trimestre sem
+dado simplesmente não tem barra — a ausência fica legível sem legenda, e nada é
+interpolado. A linha antiga, além de sugerir continuidade, usava autoescala: uma variação
+de 0,1% a 0,4% ocupava a altura inteira do cartão, com o mesmo drama de uma de 0% a 40%.
+
+**Barra de composição.** Acima da série, uma barra empilhada mostra como a carteira do
+trimestre se reparte entre risco alto, atenção, baixo e sem dado. Ela está **sempre
+completa**, porque descreve apenas o corte transversal corrente, e decompõe diretamente o
+número de destaque. Em 2026Q1 ela revela algo que a série não mostrava: em deterioração,
+**59% da carteira está em "atenção"** embora só 0,2% esteja em "risco alto".
+
+Cada cartão declara a cobertura (`21 de 29 trimestres · 03/2020 a 03/2026 · máx. 7,9%`) e
+traz, logo abaixo, a **justificativa** de por que a série é incompleta. O mesmo texto
+abre a aba da pergunta correspondente, e é editável em `textos.toml`, seção `[series]`.
+
+### 3.4 Sobre os degraus de P2
 
 Os saltos da minissérie de concentração **não são erro de cálculo** — a cobertura dos
 quatro indicadores é estável em toda a janela. São granulosidade: com 3 a 12 instituições

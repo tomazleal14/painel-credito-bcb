@@ -15,7 +15,8 @@ import numpy as np
 import pandas as pd
 
 import catalogo
-from tema import SEMAFORO, SEMAFORO_SOFT, TEMA, sparkline
+from tema import (SEMAFORO, SEMAFORO_SOFT, TEMA, barra_composicao, barras,
+                  sparkline)
 from textos import md_html
 
 # FORMATO e derivado do catalogo, para nao haver duas listas de indicadores no projeto.
@@ -237,7 +238,8 @@ def carteira_exposta(df: pd.DataFrame, eixo: str) -> pd.Series:
 def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
                 rotulo: str, descricao: str, glossario: dict | None = None,
                 n_percentis: int | None = None,
-                componentes: list[str] | None = None) -> str:
+                componentes: list[str] | None = None,
+                justificativa: str = "") -> str:
     """Cartao de um EIXO, no padrao subindice -> componentes.
 
     Destaque: CARTEIRA EXPOSTA a risco alto (% do recorte). O score do eixo continua
@@ -260,16 +262,31 @@ def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
     nivel = "alto" if valor >= 20 else "medio" if valor >= 5 else "baixo"
     cor, soft = SEMAFORO[nivel], SEMAFORO_SOFT[nivel]
 
-    # escala ancorada no zero: a carteira exposta e fatia de um todo, e sem o piso a
-    # autoescala fazia 0,1%-0,4% parecer um despenhadeiro. `teto_minimo` de 5 p.p.
-    # impede que uma serie quase plana ainda ocupe o cartao inteiro.
+    # BARRAS, nao linha: trimestre sem dado nao ganha barra, e a ausencia fica legivel
+    # sem inventar continuidade. Altura sempre proporcional ao valor, a partir do zero.
     _s = serie.dropna()
-    spark = sparkline(list(serie.values), cor=cor, piso_zero=True, teto_minimo=5.0,
-                      linha_base=float(_s.median()) if len(_s) else None)
+    rotulos = [(f"{str(d)[2:4]}" if str(d)[4:6] == "03" else "") for d in serie.index]
+    grafico = barras(list(serie.values), rotulos=rotulos, cor=cor)
+
     faixa_txt = ""
     if len(_s):
-        faixa_txt = (f"série: {num(_s.min(), 1)}% a {num(_s.max(), 1)}% "
-                     f"em {len(_s)} trimestre{'s' if len(_s) > 1 else ''}")
+        pi, pf = _s.index.min(), _s.index.max()
+        faixa_txt = (f"{len(_s)} de {len(serie)} trimestres · "
+                     f"{str(pi)[4:6]}/{str(pi)[:4]} a {str(pf)[4:6]}/{str(pf)[:4]} · "
+                     f"máx. {num(_s.max(), 1)}%")
+
+    # composicao da carteira do trimestre por nivel de risco -- SEMPRE completa,
+    # porque descreve so o corte transversal atual e nao depende de historico
+    comp_fatias = []
+    if col_sem in df_atual.columns and "carteira_credito_real" in df_atual.columns:
+        tot_cart = df_atual["carteira_credito_real"].sum()
+        for nivel, rot_n in [("alto", "risco alto"), ("medio", "atenção"),
+                             ("baixo", "baixo"), ("sem", "sem dado")]:
+            v = df_atual.loc[df_atual[col_sem] == nivel, "carteira_credito_real"].sum()
+            if tot_cart > 0 and v > 0:
+                comp_fatias.append((f"{rot_n} — {v/tot_cart*100:.1f}% da carteira",
+                                    float(v), SEMAFORO[nivel]))
+    composicao = barra_composicao(comp_fatias) if comp_fatias else ""
 
     delta_txt = ""
     if len(serie) >= 5 and pd.notna(serie.iloc[-1]) and pd.notna(serie.iloc[-5]):
@@ -317,8 +334,11 @@ def cartao_eixo(df_hist: pd.DataFrame, df_atual: pd.DataFrame, eixo: str,
       <div class="cartao-escala">da carteira do recorte está em instituições sinalizadas
         neste eixo</div>
       <div class="cartao-releitura">{descricao}</div>
-      <div class="cartao-spark">{spark}</div>
-      <div class="cartao-escala">{faixa_txt} · escala a partir de 0</div>
+      <div class="cartao-comp-barra">{composicao}</div>
+      <div class="cartao-escala">composição da carteira do trimestre por nível de risco</div>
+      <div class="cartao-spark">{grafico}</div>
+      <div class="cartao-escala">{faixa_txt}</div>
+      <div class="cartao-just">{justificativa}</div>
       <div class="cartao-meta">{delta_txt} · score mediano {num(score_mediano, 2)}</div>
       <div class="cartao-comp">{comp_txt}<br>{' · '.join(partes)}</div>
     </div>

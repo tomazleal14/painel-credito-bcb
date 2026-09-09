@@ -202,6 +202,83 @@ def sparkline(valores, largura: int = 168, altura: int = 34,
             f'{lacunas}{base}{corpo}{ponta}</svg>')
 
 
+def barras(valores, rotulos=None, largura: int = 200, altura: int = 38,
+           cor: str | None = None, destaque_ultimo: bool = True) -> str:
+    """Minissérie em BARRAS, uma por trimestre.
+
+    Substitui a linha nos cartoes de eixo por um motivo concreto: linha sobre serie
+    esparsa desenha continuidade onde nao ha dado, e a autoescala fazia 0,3 ponto
+    percentual parecer um despenhadeiro. Com barras, trimestre sem dado simplesmente
+    NAO TEM BARRA -- a ausencia fica legivel sem precisar de legenda -- e a altura e
+    sempre proporcional ao valor, medida a partir do zero.
+    """
+    v = [None if (x is None or x != x) else float(x) for x in valores]
+    validos = [x for x in v if x is not None]
+    if not validos:
+        return f'<svg width="{largura}" height="{altura}"></svg>'
+
+    hi = max(max(validos), 1e-9)
+    n = len(v)
+    pad_b = 7                      # espaco para a regua do eixo
+    espaco = largura / n
+    w = max(espaco * 0.62, 1.4)
+    cor = cor or TEMA["acento"]
+    util = altura - pad_b - 2
+
+    partes = []
+    for i, val in enumerate(v):
+        x = i * espaco + (espaco - w) / 2
+        if val is None:
+            # marca discreta de ausencia, na linha do eixo
+            partes.append(f'<rect x="{x:.1f}" y="{altura - pad_b - 1:.1f}" '
+                          f'width="{w:.1f}" height="1.5" fill="{TEMA["eixo"]}" '
+                          f'opacity="0.35"/>')
+            continue
+        h = max((val / hi) * util, 0.8)
+        ultimo_valido = destaque_ultimo and all(x is None for x in v[i + 1:])
+        c = TEMA["texto"] if ultimo_valido else cor
+        op = "1" if ultimo_valido else "0.55"
+        partes.append(f'<rect x="{x:.1f}" y="{altura - pad_b - h:.1f}" '
+                      f'width="{w:.1f}" height="{h:.1f}" fill="{c}" opacity="{op}" '
+                      f'rx="0.6"/>')
+
+    eixo = (f'<line x1="0" y1="{altura - pad_b:.1f}" x2="{largura}" '
+            f'y2="{altura - pad_b:.1f}" stroke="{TEMA["borda"]}" stroke-width="1"/>')
+
+    marcas = ""
+    if rotulos:
+        for i, rot in enumerate(rotulos):
+            if rot:
+                marcas += (f'<text x="{i * espaco + espaco/2:.1f}" y="{altura - 0.5:.1f}" '
+                           f'font-size="7.5" fill="{TEMA["texto_3"]}" '
+                           f'text-anchor="middle">{rot}</text>')
+
+    return (f'<svg width="{largura}" height="{altura}" viewBox="0 0 {largura} {altura}" '
+            f'style="display:block;width:100%">{"".join(partes)}{eixo}{marcas}</svg>')
+
+
+def barra_composicao(fatias, largura: int = 200, altura: int = 13) -> str:
+    """Barra horizontal empilhada. `fatias` = [(rotulo, valor, cor), ...].
+
+    Serve onde a serie temporal falha: esta SEMPRE completa, porque descreve o
+    trimestre corrente, e decompoe diretamente o numero de destaque do cartao.
+    """
+    total = sum(max(v, 0) for _, v, _ in fatias)
+    if total <= 0:
+        return f'<svg width="{largura}" height="{altura}"></svg>'
+    partes, x = [], 0.0
+    for rot, val, cor in fatias:
+        w = max(val, 0) / total * largura
+        if w <= 0:
+            continue
+        partes.append(f'<rect x="{x:.2f}" y="0" width="{w:.2f}" height="{altura}" '
+                      f'fill="{cor}"><title>{rot}: {val/total*100:.1f}%</title></rect>')
+        x += w
+    return (f'<svg width="{largura}" height="{altura}" viewBox="0 0 {largura} {altura}" '
+            f'preserveAspectRatio="none" style="display:block;width:100%;'
+            f'border-radius:2px">{"".join(partes)}</svg>')
+
+
 # ---------------------------------------------------------------- CSS
 # Tamanhos padrao, em pixels. Podem ser sobrescritos pela secao [aparencia] do
 # textos.toml, para que se ajuste o corpo do texto sem mexer em codigo.
@@ -312,6 +389,13 @@ def _css(t: dict) -> str:
   .cartao-comp .ref {{ color: {TEMA['texto_3']}; font-size: 0.92em; }}
   .cartao-escala {{ font-size: 10.5px; color: {TEMA['texto_3']}; margin: -2px 0 6px 0;
                     letter-spacing: 0.01em; }}
+  .cartao-comp-barra {{ margin: 8px 0 3px 0; }}
+  /* justificativa de serie incompleta: fica visivel, nao escondida em nota de rodape */
+  .cartao-just {{ font-size: 10.5px; line-height: 1.5; color: {TEMA['texto_2']};
+                  background: {TEMA['surface_2']}; border-left: 2px solid {TEMA['eixo']};
+                  padding: 6px 9px; margin: 4px 0 8px 0; border-radius: 0 3px 3px 0; }}
+  .cartao-just:empty {{ display: none; }}
+  .cartao-just b {{ color: {TEMA['acento_ink']}; }}
 
   /* par sinalizadas x recorte: os dois valores lado a lado, o do recorte em corpo
      menor e cor secundaria -- e referencia, nao protagonista */

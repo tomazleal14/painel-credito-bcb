@@ -86,6 +86,31 @@ rotulo = "Deterioração"
 descricao = "Qualidade da carteira frente ao ritmo de crescimento e à folga de capital."
 
 # ---------------------------------------------------------------------------
+#  Por que a serie de cada eixo tem tamanho diferente.
+#  Aparece sob a minisserie do cartao e no topo da aba da pergunta.
+# ---------------------------------------------------------------------------
+[series.crescimento]
+curta = """
+Sem dado em **2019** (o crescimento anual precisa de quatro trimestres anteriores, e a
+série começa em 2019Q1) e em **2025** (a Res. 4.966 mudou a definição da carteira, e
+toda comparação de 12 meses que atravessa essa data ficaria contaminada).
+"""
+
+[series.concentracao]
+curta = """
+**Série completa.** Os quatro indicadores de concentração comparam valores do mesmo
+trimestre, então não dependem de histórico e não são afetados pela quebra de 2025.
+"""
+
+[series.deterioracao]
+curta = """
+Sem dado antes de **2025Q1**: quatro dos seis indicadores — inadimplência, inadimplência
+ajustada, ativos problemáticos e folga de capital — só passam a existir com o regime de
+perda esperada da Res. 4.966. Antes disso havia apenas provisão e cobertura, que medem
+quase a mesma coisa.
+"""
+
+# ---------------------------------------------------------------------------
 #  Sintese e explicacao do score -- o texto sob os tres cartoes da Visao geral
 # ---------------------------------------------------------------------------
 [sintese]
