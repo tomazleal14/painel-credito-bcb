@@ -80,6 +80,27 @@ def main() -> int:
             falhas.append(f"{eixo}: o numero nao varia entre trimestres "
                           f"({len(distintos)} valor distinto) -- suspeita de leitura fixa")
 
+    # (4) a minisserie do cartao de INDICADOR cobre o calendario inteiro, com NaN nas
+    # lacunas -- e nao so os trimestres em que houve alguem sinalizado. Sem isso, o
+    # groupby some com o trimestre vazio, o sparkline liga 2024Q4 a 2026Q1 e o delta de
+    # iloc[-5] cai dois anos atras sendo rotulado "em 12 meses".
+    print("\nMINISSERIE DOS CARTOES DE INDICADOR — o indice cobre o calendario?")
+    for eixo, cols in cartoes.indicadores_por_eixo(ativos).items():
+        marc = hist[hist[f"sem_{eixo}"] == "alto"]
+        for c in cols:
+            s = cartoes._serie_mediana(marc, c, indice=dts)
+            if list(s.index) != list(dts):
+                falhas.append(f"{c}: indice da minisserie tem {len(s)} pontos, "
+                              f"calendario tem {len(dts)}")
+                continue
+            if len(s) >= 5 and pd.notna(s.iloc[-1]) and pd.notna(s.iloc[-5]):
+                ult, ant = int(s.index[-1]), int(s.index[-5])
+                meses = ((ult // 100) * 12 + ult % 100) - ((ant // 100) * 12 + ant % 100)
+                if meses != 12:
+                    falhas.append(f"{c}: delta rotulado '12 meses' compara {ant} com "
+                                  f"{ult} ({meses} meses)")
+        print(f"   {eixo:14s} {len(cols)} indicadores · índice de {len(dts)} pontos OK")
+
     print()
     if falhas:
         print(f"FALHAS ({len(falhas)}):")

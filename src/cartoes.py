@@ -86,17 +86,29 @@ def num(v: float, casas: int) -> str:
     return f"{v:,.{casas}f}".replace(",", " ").replace(".", ",").replace(" ", ".")
 
 
-def _serie_mediana(df: pd.DataFrame, col: str) -> pd.Series:
+def _serie_mediana(df: pd.DataFrame, col: str,
+                   indice: list | None = None) -> pd.Series:
     """Mediana por trimestre -- a serie que o sparkline desenha.
 
     NAO remove os trimestres vazios: eles precisam chegar como NaN para o sparkline
     desenhar um buraco. Removê-los encostaria os pontos vizinhos e inventaria uma
     continuidade que o dado nao tem.
+
+    `indice` e a lista COMPLETA de data-bases do painel, e e obrigatorio quando `df` ja
+    vem filtrado (ex.: so as instituicoes sinalizadas). Sem ele, um trimestre em que
+    NINGUEM foi sinalizado nao gera grupo nenhum no groupby e simplesmente desaparece do
+    indice -- o oposto do que esta docstring promete. Foi o que acontecia em P1: a serie
+    tinha 21 pontos contiguos em vez de 29 com buraco em 2025, o sparkline ligava
+    2024Q4 a 2026Q1, e o delta de `iloc[-5]` caia em 2024Q1 e era rotulado "em 12 meses"
+    sendo uma distancia de dois anos.
     """
     if col not in df.columns:
         return pd.Series(dtype=float)
-    return (df.replace([np.inf, -np.inf], np.nan)
-              .groupby("data_base")[col].median().sort_index())
+    s = (df.replace([np.inf, -np.inf], np.nan)
+           .groupby("data_base")[col].median().sort_index())
+    if indice is not None:
+        s = s.reindex(sorted(indice))
+    return s
 
 
 def cartao_indicador(df_hist: pd.DataFrame, df_atual: pd.DataFrame, col: str,
@@ -123,7 +135,10 @@ def cartao_indicador(df_hist: pd.DataFrame, df_atual: pd.DataFrame, col: str,
     hist_marc = df_hist[df_hist[col_sem] == "alto"] if (
         tem_marca and col_sem in df_hist.columns) else df_hist
 
-    serie = _serie_mediana(hist_marc, col) * fator
+    # o indice vem de df_hist (todas as instituicoes), nao de hist_marc: e o calendario
+    # do painel, e nao o subconjunto de trimestres em que houve alguem sinalizado
+    calendario = sorted(df_hist["data_base"].unique()) if "data_base" in df_hist else None
+    serie = _serie_mediana(hist_marc, col, indice=calendario) * fator
     atual = (marcadas[col].replace([np.inf, -np.inf], np.nan).dropna()
              if col in marcadas else pd.Series(dtype=float))
     todas = (df_atual[col].replace([np.inf, -np.inf], np.nan).dropna()
@@ -140,6 +155,12 @@ def cartao_indicador(df_hist: pd.DataFrame, df_atual: pd.DataFrame, col: str,
         cor_delta = TEMA["risco_alto"] if piora else TEMA["risco_baixo"]
         seta = "▲" if d > 0 else ("▼" if d < 0 else "•")
         delta_txt = f"{seta} {num(abs(d), casas)} em 12 meses"
+    elif len(serie) >= 5 and pd.notna(serie.iloc[-1]):
+        # a ponta de 4 trimestres atras cai numa lacuna: qualquer numero aqui seria a
+        # diferenca contra outro ano, nao contra 12 meses
+        delta_txt = "sem comparação de 12 meses — há lacuna 4 trimestres atrás"
+    elif len(serie) < 5:
+        delta_txt = f"série curta demais para 12 meses ({len(serie.dropna())} trim.)"
 
     cor_linha = TEMA["acento"]
     _s = serie.dropna()
