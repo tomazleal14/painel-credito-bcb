@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 #  TEXTOS DO PAINEL  --  edite este arquivo para mudar qualquer texto da tela.
 #
 #  Nao e preciso saber Python. As regras sao quatro:
@@ -117,7 +117,11 @@ O filtro HP precisa de 12 trimestres de série. Anulado em 2025 porque a tendên
 estimada sobre o **nível** da carteira, e o degrau da Res. 4.966 entraria na tendência.
 """
 p1_3_trim_consec_acima = """
-Derivado do crescimento anual: herda o início em 2020 e a anulação de 2025.
+Derivado do crescimento anual: herda o início em 2020 e a anulação de 2025. A sequência
+**reinicia na lacuna** — não dá para contar trimestres seguidos através de quatro
+trimestres que o painel declara não saber medir. Por isso o máximo em 2026Q1 é **1**,
+contra 20 em 2024Q4, e o indicador só volta a discriminar à medida que a série pós-quebra
+se alonga.
 """
 p1_4_cresc_carteira_sobre_capital = """
 **A série mais curta do painel.** Depende do Patrimônio de Referência, publicado apenas
@@ -206,10 +210,10 @@ rotulo_expander = "Como ler estes números — o cálculo passo a passo"
 
 o_que_e_o_numero = """
 O número grande é a **fatia da carteira do recorte que está em instituições sinalizadas
-como risco alto naquele eixo**. Se aparece 7,2% em Crescimento, significa: somando a
+como risco alto naquele eixo**. Se aparece 7,5% em Crescimento, significa: somando a
 carteira de todas as instituições que o painel marcou como risco alto de crescimento,
-elas respondem por 7,2% do crédito do recorte. É percentual de carteira, não de
-instituições — o selo ao lado traz a contagem (**54 de 258 IFs**).
+elas respondem por 7,5% do crédito do recorte. É percentual de carteira, não de
+instituições — o selo ao lado traz a contagem (**54 de 257 IFs**).
 """
 
 como_ler = """
@@ -222,7 +226,7 @@ explicado na página de P2). As faixas usadas para o semáforo do cartão: **aba
 
 Cuidado com uma comparação que o cartão não autoriza: os três números **não são
 comparáveis entre si em nível**. Cada um usa o corte de score do seu próprio eixo, e os
-eixos têm quantidades diferentes de indicadores disponíveis. 7,2% em Crescimento e 0,2%
+eixos têm quantidades diferentes de indicadores disponíveis. 7,5% em Crescimento e 0,2%
 em Deterioração não querem dizer que crescimento é 36 vezes mais grave — querem dizer que
 as instituições que lideram os percentis de crescimento são maiores que as que lideram os
 de deterioração.

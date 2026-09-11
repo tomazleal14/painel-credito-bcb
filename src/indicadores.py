@@ -137,6 +137,22 @@ def calcula() -> pd.DataFrame:
     cres = cres.fillna(cres_prud.set_index(["data_base", "cod_inst"]))
     df = df.merge(cres.reset_index(), on=["data_base", "cod_inst"], how="left")
 
+    # ANULA A QUEBRA ANTES DE DERIVAR QUALQUER COISA DELA.
+    # A mascara geral roda no fim de calcula(), o que basta para os indicadores que sao
+    # eles proprios uma razao t/t-4. Nao basta para os que se APOIAM no crescimento:
+    #   - p1_3 conta trimestres seguidos acima de 15%. Rodando sobre o crescimento
+    #     contaminado, a sequencia atravessava 2025 e chegava a 2026Q1 inflada: o maximo
+    #     do recorte ia de 20 trimestres em 202412 para 25 em 202603, somando os quatro
+    #     trimestres que o painel declara nao saber medir.
+    #   - p1_11 e cresc(t) - cresc(t-4); em 202603 o t-4 e 202503, que nao existe.
+    # Mascarar aqui faz a sequencia REINICIAR na lacuna e p1_11 nascer vazio, que e a
+    # leitura honesta: nao da para contar uma sequencia atraves de um buraco.
+    _contaminadas = _mascara_quebra(df["data_base"])
+    for _c in ("p1_1_cresc_real_aa", "p1_2_credit_gap",
+               "p1_4_cresc_carteira_sobre_capital", "p1_6_var_share_pp"):
+        if _c in df.columns:
+            df.loc[_contaminadas, _c] = np.nan
+
     acima = df["p1_1_cresc_real_aa"] >= LIMIAR_BOOM
     df["p1_3_trim_consec_acima"] = (df.assign(_a=acima)
                                       .sort_values(["cod_inst", "data_base"])

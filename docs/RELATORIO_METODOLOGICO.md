@@ -118,6 +118,36 @@ constante. Efeito: a série do credit gap cai de 29 para 25 trimestres, e a sér
 crescimento da Visão geral passa a exibir **21 de 29 trimestres, 03/2020 a 03/2026**, com
 2025 vazio.
 
+**A quebra é de definição, não de pareamento.** Vale desfazer uma confusão fácil: o
+`cod_inst` de fato muda entre os universos — no painel **longo** (1005 emendado com 1009),
+só 782 de 1.366 instituições pareiam entre 202412 e 202503, e nenhum dos grandes bancos
+pareia. Mas o painel **não depende disso**: `_colunas_crescimento` calcula a variação anual
+dentro de **cada** universo separadamente, e `combine_first` usa o prudencial (tipo 1009,
+códigos estáveis desde 2023Q3) onde o longo falha. No prudencial o pareamento é de **1.357
+de 1.366**, incluindo Caixa, Itaú, BB, Bradesco, Santander e BNDES, todos com o mesmo
+código nas duas pontas.
+
+Ou seja: o crescimento de 2025 **seria calculável**. O que ele mediria é que é o problema —
+é exatamente esse pareamento correto que produz o Itaú a +9,2% e o Bradesco a +10,5% num
+trimestre. A máscara existe porque a comparação é tecnicamente possível e
+economicamente sem sentido, não porque falte com quem comparar.
+
+**Contaminação de segunda ordem.** A máscara geral roda no fim de `calcula()`, o que basta
+para os indicadores que são eles próprios uma razão `t/t−4`. Não bastava para dois que se
+*apoiam* no crescimento:
+
+- **`p1_3` (trimestres seguidos acima de 15%)** contava a sequência sobre o crescimento
+  ainda contaminado. A sequência atravessava 2025 e chegava a 2026Q1 inflada: o máximo do
+  recorte ia de **20** trimestres em 202412 para **25** em 202603 — somando os quatro
+  trimestres que o painel declara não saber medir.
+- **`p1_11` (aceleração)** é `cresc(t) − cresc(t−4)`; em 202603 o `t−4` é 202503, que não
+  existe.
+
+Corrigido movendo a máscara das colunas de crescimento para **antes** das derivações. A
+sequência agora **reinicia na lacuna** (máximo 1 em 202603) e `p1_11` nasce vazia. Efeito
+na seleção: a carteira exposta em crescimento passa de 7,2% para **7,5%** em 03/2026, com
+as mesmas 54 instituições; o corte de 0,80 vai de 35 para 31.
+
 Reprodução: `src/diagnostica_salto.py`, `src/checa_virada.py` e `src/checa_serie_cartao.py`.
 
 ### 3.2 Mínimo de indicadores por eixo
@@ -340,9 +370,9 @@ discorda — `src/testa_corte.py` mede o efeito, em 03/2026:
 |---|---|---|---|
 | 0,65 | 82 IFs · 10,5% | 26 IFs · 1,9% | 50 IFs · 2,6% |
 | 0,70 | 69 IFs · 9,1% | 13 IFs · 1,0% | 26 IFs · 1,2% |
-| **0,75** | **54 IFs · 7,2%** | **7 IFs · 0,8%** | **10 IFs · 0,2%** |
-| 0,80 | 35 IFs · 2,9% | 3 IFs · 0,4% | 3 IFs · 0,1% |
-| 0,85 | 20 IFs · 1,0% | 1 IF · 0,0% | 0 IFs · 0,0% |
+| **0,75** | **54 IFs · 7,5%** | **7 IFs · 0,8%** | **10 IFs · 0,2%** |
+| 0,80 | 31 IFs · 2,7% | 3 IFs · 0,4% | 3 IFs · 0,1% |
+| 0,85 | 19 IFs · 0,8% | 1 IF · 0,0% | 0 IFs · 0,0% |
 
 O mesmo script trava a **monotonicidade**: baixar o corte nunca pode reduzir o número de
 sinalizadas nem a carteira exposta. Se reduzisse, o semáforo estaria invertido em algum
