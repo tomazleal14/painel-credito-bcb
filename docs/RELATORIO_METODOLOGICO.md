@@ -118,19 +118,44 @@ constante. Efeito: a série do credit gap cai de 29 para 25 trimestres, e a sér
 crescimento da Visão geral passa a exibir **21 de 29 trimestres, 03/2020 a 03/2026**, com
 2025 vazio.
 
-**A quebra é de definição, não de pareamento.** Vale desfazer uma confusão fácil: o
-`cod_inst` de fato muda entre os universos — no painel **longo** (1005 emendado com 1009),
-só 782 de 1.366 instituições pareiam entre 202412 e 202503, e nenhum dos grandes bancos
-pareia. Mas o painel **não depende disso**: `_colunas_crescimento` calcula a variação anual
-dentro de **cada** universo separadamente, e `combine_first` usa o prudencial (tipo 1009,
-códigos estáveis desde 2023Q3) onde o longo falha. No prudencial o pareamento é de **1.357
-de 1.366**, incluindo Caixa, Itaú, BB, Bradesco, Santander e BNDES, todos com o mesmo
-código nas duas pontas.
+### Por que não compatibilizar os regimes — as três vias testadas
 
-Ou seja: o crescimento de 2025 **seria calculável**. O que ele mediria é que é o problema —
-é exatamente esse pareamento correto que produz o Itaú a +9,2% e o Bradesco a +10,5% num
-trimestre. A máscara existe porque a comparação é tecnicamente possível e
-economicamente sem sentido, não porque falte com quem comparar.
+A pergunta é legítima e vai ser feita: *por que jogar fora um ano de P1 em vez de
+encadear as séries?* A resposta está medida em `src/avalia_ponte.py`, e são **duas**
+descontinuidades — a primeira tem solução, a segunda não.
+
+**A identidade tem solução, e ela é oficial.** O `cod_inst` muda (Itaú é `10069` no 1005 e
+`1000080099` no 1009), mas o próprio cadastro do IF.data declara o vínculo nos campos
+`c15` (código do conglomerado prudencial) e `c22` (nome). A regra
+`"1000" + int(c15).zfill(6)` acerta 8 de 8 nos maiores e 629 de 638 vínculos.
+`src/crosswalk.py` monta essa ponte nas 29 data-bases, e ela é **validada contra o dado
+oficial**: em 202309–202412 os dois universos coexistem com a carteira contábil, e somar
+as entidades 1005 vinculadas reproduz o valor 1009 publicado com **erro mediano de
+0,000%** (3% dos conglomerados ficam fora da tolerância de 1%, porque o escopo prudencial
+consolida entidades que não publicam no 1005). Ou seja: **não falta com quem comparar.**
+
+**A medida não tem solução.** Três vias, todas descartadas por evidência:
+
+| via testada | resultado |
+|---|---|
+| Ajustar o degrau por um fator comum | **Não.** No prudencial, com os mesmos códigos, o IQR da variação trimestral abre de 8,6 para 13,9 p.p. (**1,62×**) e o p05 vai de −16,0% para −33,3%. O efeito é idiossincrático — cada instituição se move para um lado. |
+| Usar "Operações de Crédito (d1)" do Ativo, que existe nos dois regimes | **Não.** Ela mudou de significado: em 2025 vale exatamente `e1 − \|e2\|` (bruto menos perda esperada). A identidade fecha em **1,0000** do p25 ao p75, nas 1.059 instituições. Era bruta, virou líquida. |
+| Usar a família "Carteira de crédito ativa" (base SCR) | **Não.** Até 202412 a razão `reg_total ÷ carteira_credito` é **1,0000** do p25 ao p75, em todas as data-bases: os dois relatórios publicam o **mesmo número**. A carteira ativa só vira conceito próprio em 202503 (razão 1,036) — ou seja, depois da quebra, quando já não serve de ponte para trás. |
+
+A terceira via merece um aviso, porque **quase nos enganou**. Comparada só nas
+instituições cujo código não mudou — os independentes —, `reg_total` parece atravessar a
+quebra sem degrau (mediana +0,6%, dispersão *encolhendo*). Mas essas são exatamente a
+subamostra em que a quebra de identidade nunca existiu, e os grandes bancos ficam de fora
+dela por construção. O teste correto é a razão contra a carteira do Resumo **dentro do
+mesmo trimestre**, e ele mostra que não há fonte independente antes de 2025.
+
+**Conclusão.** O crescimento de 2025 *seria calculável* — o pareamento existe e é oficial.
+O que ele mediria é que é o problema: é exatamente esse pareamento correto que produz o
+Itaú a +9,2% num trimestre. A máscara existe porque a comparação é **tecnicamente possível
+e economicamente sem sentido**, e porque nenhuma das três vias de compatibilização
+sobrevive ao teste.
+
+Reprodução: `src/avalia_ponte.py` e `src/crosswalk.py`.
 
 **Contaminação de segunda ordem.** A máscara geral roda no fim de `calcula()`, o que basta
 para os indicadores que são eles próprios uma razão `t/t−4`. Não bastava para dois que se
