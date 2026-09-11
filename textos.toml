@@ -1,4 +1,4 @@
-﻿# ============================================================================
+# ============================================================================
 #  TEXTOS DO PAINEL  --  edite este arquivo para mudar qualquer texto da tela.
 #
 #  Nao e preciso saber Python. As regras sao quatro:
@@ -135,6 +135,11 @@ Precisa de quatro trimestres anteriores da carteira PF por modalidade. Anulado e
 p1_6_var_share_pp = """
 Precisa de quatro trimestres anteriores. Anulado em 2025: a participação de mercado
 mudaria só pela troca de universo (1005 para 1009).
+"""
+p1_8_cresc_captacoes_aa = """
+Precisa de quatro trimestres anteriores, então só começa em 2020Q1. Anulado em 2025: as
+captações vêm do Resumo, cuja identidade de instituição muda na virada de universo
+(1005 para 1009), e a comparação de 12 meses compararia entidades diferentes.
 """
 p3_1_inadimplencia = """
 Só existe no regime de perda esperada, a partir de 2025Q1.
@@ -334,6 +339,138 @@ Quantos pontos percentuais de participação na carteira do universo a institui�
 em 12 meses. | Ganho de mercado muito rápido é sinal clássico de afrouxamento de critério
 de concessão. | Em p.p.; valores pequenos são normais — o que importa é a posição
 relativa aos pares.
+"""
+
+p1_8_cresc_captacoes_aa = """
+Variação das captações em 12 meses, já descontada a inflação. | Mede o **lado do funding**
+do crescimento: carteira que cresce rápido precisa ser financiada, e captação que dispara
+junto costuma vir de fontes mais caras e mais voláteis que o depósito de varejo. É o
+complemento natural do loan-to-deposit de P2, que mede o nível dessa razão enquanto este
+mede a velocidade. | Em % a.a. real. Crescimento de captação muito acima do da carteira
+pode indicar acúmulo de liquidez; muito abaixo, crédito financiado por fonte que não
+aparece aqui.
+"""
+
+# --- P1: alternativas do pool de troca ---
+p1_7_cresc_ativo_aa = """
+Variação do ativo total em 12 meses, já descontada a inflação. | É mais **amplo** que a
+carteira: capta expansão que não passa pelo crédito — tesouraria, títulos, participações.
+Serve para separar quem está crescendo em crédito de quem está crescendo em balanço. | Em
+% a.a. real. Ativo crescendo muito acima da carteira sugere que a expansão está fora do
+crédito; muito abaixo, que o crédito é o motor.
+"""
+p1_9_cresc_clientes_aa = """
+Variação do número de clientes com operações ativas, em 12 meses. | Separa expansão por
+**novos tomadores** de expansão por ticket maior. Entrada acelerada em clientes novos é
+onde a safra costuma ser pior, porque a instituição ainda não tem histórico deles. | Em %
+a.a. Comparar com o crescimento da carteira: se a carteira cresce e os clientes não, o
+ticket está subindo.
+"""
+p1_10_cresc_pj_aa = """
+Variação da carteira de pessoa jurídica em 12 meses, já descontada a inflação. | Abre o
+crescimento por segmento, complementando o indicador de alto risco PF. Crescimento
+concentrado em PJ tem dinâmica diferente: tickets maiores, menos diversificação, mais
+sensibilidade ao ciclo. | Em % a.a. real. Instituições sem carteira PJ ficam com o campo
+**vazio** e não pontuam neste item.
+"""
+p1_11_aceleracao_pp = """
+Quanto o próprio ritmo de crescimento mudou em 12 meses: crescimento de hoje menos
+crescimento de um ano atrás. | Crescer 25% de forma estável é diferente de sair de 5% para
+25%. O que preocupa a supervisão é a **mudança de patamar**, não o patamar. | Em p.p.
+Positivo = acelerando. Depende de duas leituras de crescimento, então fica vazio sempre
+que uma delas cair numa lacuna da série.
+"""
+p1_12_cresc_ticket_aa = """
+Variação do ticket médio (carteira ÷ clientes) em 12 meses, já descontada a inflação. |
+Ticket subindo rápido significa **mais exposição por tomador** com a mesma base de
+clientes — concentração crescendo por dentro, sem aparecer na contagem. | Em % a.a. real.
+Ler junto com o crescimento do nº de clientes: os dois juntos decompõem o crescimento da
+carteira.
+"""
+
+# --- P2: alternativas do pool de troca ---
+p2_7_hhi_modalidade_pf = """
+**HHI** das sete modalidades da carteira PF: soma dos quadrados das participações, de 0 a
+10.000. | Mede concentração no **mix de produtos**, e não no nível de risco deles. Uma
+instituição pode ter carteira pouco arriscada e ainda assim depender de um só produto. |
+Abaixo de 1.500 = diversificado; acima de 2.500 = concentrado. Monoprodutos (financeiras
+de veículo, emissores de cartão) chegam perto de 10.000 por natureza do negócio.
+"""
+p2_8_max_regiao_pct = """
+Fatia da carteira na região geográfica de maior participação. | Leitura mais direta que o
+HHI regional: responde "quanto está na região dominante?" em % da carteira, sem exigir a
+interpretação de um índice. | Em %. Cooperativas singulares e bancos regionais chegam
+perto de 100% por construção — o percentil é dentro do grupo de pares, o que corrige isso
+parcialmente.
+"""
+p2_9_credito_sobre_ativo = """
+Carteira de crédito dividida pelo ativo total. | Mede **quanto do balanço está exposto a
+risco de crédito**. Duas instituições com a mesma carteira têm capacidade de absorção
+diferente se uma tem metade do ativo em títulos públicos. | Em %. Perto de 100% = balanço
+quase todo em crédito; valores baixos indicam tesouraria grande.
+"""
+p2_10_ticket_medio = """
+Carteira dividida pelo número de clientes com operações ativas. | *Proxy* de
+granularidade: ticket alto sugere poucos tomadores grandes. | Em R$ mil.
+**Atenção:** NÃO mede exposição aos maiores devedores — um banco com muitos clientes
+grandes aparece igual a um com poucos. Para isso existe o indicador de tomadores de grande
+porte, que tem fonte direta.
+"""
+p2_11_pct_capital_giro = """
+Fatia da carteira PJ em capital de giro. | Capital de giro é crédito de curto prazo e
+renovação frequente: concentração alta aqui significa exposição a **rolagem**, que seca
+rápido quando o crédito aperta. | Em % da carteira PJ. Instituições sem carteira PJ ficam
+com o campo vazio.
+"""
+p2_12_hhi_porte_pj = """
+**HHI** dos quatro portes do tomador PJ (micro, pequena, média, grande): soma dos
+quadrados das participações, de 0 a 10.000. | Alternativa ao "% em grande porte": em vez
+de olhar só a ponta, mede a **dispersão entre portes**. Uma carteira só de microempresas é
+tão concentrada quanto uma só de grandes — e este indicador captura as duas. | Acima de
+2.500 = concentrada num porte. Vazio para quem não tem carteira PJ.
+"""
+
+# --- P3: alternativas do pool de troca ---
+p3_7_folga_capital_principal_pp = """
+Índice de Capital Principal menos a exigência de 7,0% (4,5% mínimo + 2,5% de conservação).
+| O **capital de maior qualidade** — ações e lucros retidos, o que absorve perda primeiro.
+Exigência mais estrita que a de Basileia, e por isso um teste mais duro. | Em p.p. acima do
+mínimo. Negativo = abaixo do exigido. Publicado apenas no universo prudencial, então a
+cobertura é menor que a do Índice de Basileia.
+"""
+p3_8_razao_alavancagem = """
+Capital Nível I dividido pela exposição total, **sem ponderação por risco**. | É o
+contraponto ao Índice de Basileia: não depende do modelo de risco da própria instituição,
+então não pode ser melhorado reclassificando ativos. Foi criado justamente como trava
+contra isso. | Em %. Quanto menor, mais alavancada. O mínimo de Basileia III é 3%.
+"""
+p3_9_gap_problematico_pp = """
+Ativos problemáticos menos o atraso acima de 90 dias, sobre a carteira. | Mede o que a
+instituição **já reconhece como problema sem que tenha virado atraso** — renegociado,
+reestruturado, com indício de dificuldade. É o pedaço da deterioração que a inadimplência
+convencional não vê. | Em p.p. Distância grande pode indicar reconhecimento diligente ou
+renegociação usada para adiar o atraso; a leitura exige o contexto dos outros indicadores.
+"""
+p3_10_problematico_sobre_pl = """
+Ativos problemáticos divididos pelo patrimônio líquido. | Troca o denominador: em vez de
+perguntar "que fatia da carteira está ruim?", pergunta **"a instituição consegue absorver
+isso com capital próprio?"**. É a pergunta da supervisão, não a do mercado. | Em %. Acima
+de 100% significa que o estoque problemático supera o patrimônio — o que não implica
+insolvência, porque há provisão e garantia, mas exige exame.
+"""
+p3_11_var_inadimplencia_pp = """
+Inadimplência de hoje menos a de um ano atrás, em pontos percentuais. | Nível alto e
+estável é diferente de nível que está **subindo**: o primeiro pode ser o modelo de negócio,
+o segundo é deterioração em curso. | Em p.p. Positivo = piorando. Depende de duas leituras
+de inadimplência, e a inadimplência só existe no regime de perda esperada — então a série
+é curta.
+"""
+p3_12_retorno_sobre_pl = """
+Lucro líquido dividido pelo patrimônio líquido. | Entra em deterioração pelo **sinal
+invertido**: rentabilidade baixa reduz a capacidade de gerar capital internamente, que é a
+primeira linha de defesa contra perda de crédito. | Em %. **Atenção:** o lucro do IF.data é
+acumulado no semestre (jan–mar, jan–jun, jul–set, jul–dez), então **não é anualizado** — os
+trimestres não são diretamente comparáveis entre si.
 """
 
 p2_1_hhi_sistema = """

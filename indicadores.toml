@@ -22,12 +22,20 @@
 [ativos]
 
 # P1 -- CRESCIMENTO
-# alternativas: p1_7_cresc_ativo_aa, p1_8_cresc_captacoes_aa, p1_9_cresc_clientes_aa,
+# alternativas: p1_3_trim_consec_acima, p1_7_cresc_ativo_aa, p1_9_cresc_clientes_aa,
 #               p1_10_cresc_pj_aa, p1_11_aceleracao_pp, p1_12_cresc_ticket_aa
+#
+# p1_8 entrou no lugar de p1_3 em 09/2026. Motivo: a quebra da Res. 4.966 faz a
+# contagem de trimestres seguidos acima de 15% REINICIAR na lacuna de 2025, e em
+# 2026Q1 o indicador tem apenas 2 valores distintos entre 258 instituicoes (0 e 1) --
+# quase todo mundo empata e o percentil nao carrega informacao. O crescimento das
+# captacoes tem 257 valores distintos e mede outro canal de risco: carteira que cresce
+# rapido financiada por captacao que tambem dispara. Conversa com o loan-to-deposit de
+# P2. p1_3 volta a discriminar conforme a serie pos-quebra se alonga.
 crescimento = [
   "p1_1_cresc_real_aa",
   "p1_2_credit_gap",
-  "p1_3_trim_consec_acima",
+  "p1_8_cresc_captacoes_aa",
   "p1_4_cresc_carteira_sobre_capital",
   "p1_5_cresc_alto_risco_aa",
   "p1_6_var_share_pp",
