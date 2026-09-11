@@ -21,6 +21,7 @@ import streamlit as st
 
 import catalogo
 from comum import DATA_PROC
+from scoring import CORTE_ALTO
 from tema import TEMA
 
 # atalhos de recorte -- combinacoes que o supervisor usa com frequencia
@@ -172,6 +173,23 @@ def barra_lateral(ind: pd.DataFrame, pesos_padrao: dict, eixos: list[str]) -> di
     with sb.expander("O que significam as siglas?"):
         st.markdown(glossario_html(gloss), unsafe_allow_html=True)
 
+    # ------------------------------------------------------- corte por eixo
+    # Sao DOIS cortes diferentes, e confundi-los e facil: este marca risco alto em CADA
+    # EIXO (define quem aparece como sinalizado nos cartoes e na composicao da carteira);
+    # o de baixo decide quem entra na AGENDA, pelo score final ponderado.
+    sb.markdown("<div class='filtro-titulo'>Corte de risco por eixo</div>",
+                unsafe_allow_html=True)
+    corte_alto = sb.slider(
+        "Risco alto a partir de", 0.50, 0.95, CORTE_ALTO, 0.01,
+        help="Score do eixo a partir do qual a instituição é marcada como risco alto. "
+             "O padrão 0,75 é o quartil superior do grupo de pares — é convenção de "
+             "triagem, não exigência da norma. Mexer aqui muda quem é sinalizado nos "
+             "três eixos, a carteira exposta e a composição da barra, na hora.")
+    if abs(corte_alto - CORTE_ALTO) > 1e-9:
+        _br = f"{corte_alto:.2f}".replace(".", ",")
+        sb.warning(f"Corte em {_br}, fora do padrão (0,75). Os cartões e a agenda já "
+                   f"refletem isso; os textos explicativos ainda citam 0,75.")
+
     # ---------------------------------------------------------------- agenda
     sb.markdown("<div class='filtro-titulo'>Critério da agenda</div>",
                 unsafe_allow_html=True)
@@ -206,7 +224,7 @@ def barra_lateral(ind: pd.DataFrame, pesos_padrao: dict, eixos: list[str]) -> di
 
     return {"dt_sel": dt_sel, "tcb_sel": tcb_sel, "seg_sel": seg_sel,
             "porte_min": porte_min, "pesos": pesos, "perfil": perfil,
-            "limiar": limiar, "cobertura": cobertura,
+            "limiar": limiar, "cobertura": cobertura, "corte_alto": corte_alto,
             "ativos": ativos, "avisos_indicadores": avisos_ind}
 
 

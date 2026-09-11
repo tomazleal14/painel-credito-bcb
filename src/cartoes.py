@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 import catalogo
+from scoring import CORTE_ALTO, CORTE_MEDIO
 from tema import (COMPOSICAO_CORES, SEMAFORO, SEMAFORO_SOFT, TEMA,
                   barra_composicao, legenda_composicao, sparkline)
 from textos import md_html
@@ -256,21 +257,34 @@ def carteira_exposta(df: pd.DataFrame, eixo: str) -> pd.Series:
     return serie.sort_index()
 
 
-DICA_NIVEL = {
-    "alto": "Score do eixo ≥ 0,75 — quartil superior do grupo de pares (mesmo TCB). "
-            "É esta fatia que forma o número de destaque do cartão.",
-    "medio": "Score do eixo entre 0,50 e 0,75 — acima da mediana do grupo de pares, "
-             "sem atingir o corte de risco alto.",
-    "baixo": "Score do eixo abaixo de 0,50 — na metade inferior do grupo de pares.",
-    "sem": "Sem score neste eixo: a instituição não tem metade dos indicadores do "
-           "eixo com dado no trimestre, e o painel não publica score sobre "
-           "fragmento. Não significa risco baixo — significa não avaliável.",
-}
 ROTULO_NIVEL = {"alto": "Risco alto", "medio": "Atenção",
                 "baixo": "Risco baixo", "sem": "Não avaliável"}
 
 
-def composicao_carteira(df_atual: pd.DataFrame, eixo: str) -> list[tuple]:
+def dicas_nivel(corte_alto: float | None = None) -> dict[str, str]:
+    """Texto da dica de cada faixa do semaforo, no corte VIGENTE.
+
+    O corte de risco alto e ajustavel na barra lateral, entao deixar "0,75" escrito a
+    mao aqui faria a dica mentir assim que alguem movesse o slider.
+    """
+    ca = CORTE_ALTO if corte_alto is None else float(corte_alto)
+    cm = min(CORTE_MEDIO, ca)
+    quartil = " — quartil superior do grupo de pares" if abs(ca - 0.75) < 1e-9 else ""
+    return {
+        "alto": f"Score do eixo ≥ {num(ca, 2)}{quartil} (mesmo TCB). "
+                f"É esta fatia que forma o número de destaque do cartão.",
+        "medio": f"Score do eixo entre {num(cm, 2)} e {num(ca, 2)} — acima da mediana "
+                 f"do grupo de pares, sem atingir o corte de risco alto.",
+        "baixo": f"Score do eixo abaixo de {num(cm, 2)} — na metade inferior do grupo "
+                 f"de pares.",
+        "sem": "Sem score neste eixo: a instituição não tem metade dos indicadores do "
+               "eixo com dado no trimestre, e o painel não publica score sobre "
+               "fragmento. Não significa risco baixo — significa não avaliável.",
+    }
+
+
+def composicao_carteira(df_atual: pd.DataFrame, eixo: str,
+                        corte_alto: float | None = None) -> list[tuple]:
     """Fatias da carteira do trimestre por nivel de risco, com dica pronta.
 
     Sempre completa: descreve so o corte transversal corrente, entao nao depende de
@@ -284,6 +298,7 @@ def composicao_carteira(df_atual: pd.DataFrame, eixo: str) -> list[tuple]:
     if tot <= 0:
         return []
 
+    dicas = dicas_nivel(corte_alto)
     fatias = []
     for nivel in ("alto", "medio", "baixo", "sem"):
         d = df_atual[df_atual[col_sem] == nivel]
@@ -293,7 +308,7 @@ def composicao_carteira(df_atual: pd.DataFrame, eixo: str) -> list[tuple]:
         dica = (f"{ROTULO_NIVEL[nivel]} · {len(d)} "
                 f"{'instituição' if len(d) == 1 else 'instituições'} · "
                 f"R$ {num(v / 1e9, 1)} bi = {num(v / tot * 100, 1)}% da carteira do "
-                f"recorte.&#10;&#10;{DICA_NIVEL[nivel]}")
+                f"recorte.&#10;&#10;{dicas[nivel]}")
         fatias.append((ROTULO_NIVEL[nivel], v, COMPOSICAO_CORES[nivel], dica))
     return fatias
 
@@ -324,7 +339,8 @@ def exposta_no_trimestre(df_atual: pd.DataFrame, eixo: str) -> float:
 def cartao_eixo(df_atual: pd.DataFrame, eixo: str,
                 rotulo: str, descricao: str, glossario: dict | None = None,
                 n_percentis: int | None = None,
-                componentes: list[str] | None = None) -> str:
+                componentes: list[str] | None = None,
+                corte_alto: float | None = None) -> str:
     """Cartao de um EIXO na Visao geral: numero de destaque -> composicao -> por que.
 
     Recebe SO o corte do trimestre selecionado (`df_atual`). O historico saiu junto com
@@ -353,7 +369,7 @@ def cartao_eixo(df_atual: pd.DataFrame, eixo: str,
         if avaliavel else "sem"
     cor, soft = SEMAFORO[nivel], SEMAFORO_SOFT[nivel]
 
-    fatias = composicao_carteira(df_atual, eixo)
+    fatias = composicao_carteira(df_atual, eixo, corte_alto)
     composicao = barra_composicao(fatias) if fatias else ""
     legenda = legenda_composicao(fatias) if fatias else ""
 

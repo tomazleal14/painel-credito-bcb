@@ -58,26 +58,36 @@ FRACAO_MINIMA = 0.5
 MIN_INDICADORES = 2
 
 
-def semaforo(v: float) -> str:
+def semaforo(v: float, corte_alto: float = CORTE_ALTO,
+             corte_medio: float = CORTE_MEDIO) -> str:
     if pd.isna(v):
         return "sem"
-    if v >= CORTE_ALTO:
+    if v >= corte_alto:
         return "alto"
-    if v >= CORTE_MEDIO:
+    if v >= corte_medio:
         return "medio"
     return "baixo"
 
 
 def calcula_scores(df: pd.DataFrame, grupo_pares: str | None = "tcb",
                    pesos: dict[str, float] | None = None,
-                   ativos: dict[str, list[str]] | None = None) -> pd.DataFrame:
+                   ativos: dict[str, list[str]] | None = None,
+                   corte_alto: float | None = None) -> pd.DataFrame:
     """Adiciona percentis, scores por eixo, semaforos e score final.
 
     `grupo_pares`: coluna que define o grupo de comparacao (None = todo o universo).
     `ativos`: quais indicadores compoem cada eixo. None = selecao padrao do catalogo.
               Trocar um indicador aqui muda o score na hora, sem recalcular a base.
+    `corte_alto`: score do eixo a partir do qual a instituicao e marcada como risco alto.
+              None = CORTE_ALTO (0,75, o quartil superior do grupo de pares). E convencao
+              de triagem, nao exigencia normativa, por isso fica ajustavel: a pergunta
+              "e se o corte fosse 0,70?" tem que ter resposta na hora, na tela.
     """
     pesos = pesos or PESOS_PADRAO
+    corte_alto = CORTE_ALTO if corte_alto is None else float(corte_alto)
+    # com corte abaixo da mediana, a faixa "atencao" desapareceria por baixo; o piso
+    # mantem as tres faixas coerentes (baixo < medio < alto) em qualquer ajuste
+    corte_medio = min(CORTE_MEDIO, corte_alto)
     indicadores = indicadores_para_score(ativos)
     d = df.copy()
 
@@ -104,7 +114,8 @@ def calcula_scores(df: pd.DataFrame, grupo_pares: str | None = "tcb",
         mininimo = max(MIN_INDICADORES, int(np.ceil(len(cols) * FRACAO_MINIMA))) if cols else 0
         if cols:
             d.loc[d[f"n_ind_{eixo}"] < mininimo, f"score_{eixo}"] = np.nan
-        d[f"sem_{eixo}"] = d[f"score_{eixo}"].map(semaforo)
+        d[f"sem_{eixo}"] = d[f"score_{eixo}"].map(
+            lambda v: semaforo(v, corte_alto, corte_medio))
 
     partes = [d[f"score_{e}"] * pesos[e] for e in EIXOS]
     pesos_validos = sum(

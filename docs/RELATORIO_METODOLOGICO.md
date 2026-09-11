@@ -322,6 +322,37 @@ dela soma no número de destaque do cartão.
 O **score final** pondera os três eixos (padrão 0,30 / 0,25 / 0,45, ajustável na barra
 lateral), refletindo o encadeamento **P1 filtra → P2 qualifica → P3 prioriza**.
 
+### O corte de 0,75 é escolha nossa, e é ajustável
+
+São **dois** cortes diferentes, e confundi-los é fácil:
+
+| | valor | onde | o que decide | ajustável |
+|---|---|---|---|---|
+| `CORTE_ALTO` | 0,75 | `src/scoring.py` + barra lateral | quem é *risco alto* **em cada eixo** | **sim** |
+| `LIMIAR_AGENDA` | 0,65 | `src/scoring.py` + barra lateral | quem entra na **agenda**, pelo score final | **sim** |
+
+0,75 é o **quartil superior** do grupo de pares. Não vem de norma nem de estimação: é
+convenção de triagem, e a defesa dela é que seleciona um conjunto pequeno o bastante para
+caber num ciclo de supervisão. Por ser arbitrária, tem que ser movível na frente de quem
+discorda — `src/testa_corte.py` mede o efeito, em 03/2026:
+
+| corte | Crescimento | Concentração | Deterioração |
+|---|---|---|---|
+| 0,65 | 82 IFs · 10,5% | 26 IFs · 1,9% | 50 IFs · 2,6% |
+| 0,70 | 69 IFs · 9,1% | 13 IFs · 1,0% | 26 IFs · 1,2% |
+| **0,75** | **54 IFs · 7,2%** | **7 IFs · 0,8%** | **10 IFs · 0,2%** |
+| 0,80 | 35 IFs · 2,9% | 3 IFs · 0,4% | 3 IFs · 0,1% |
+| 0,85 | 20 IFs · 1,0% | 1 IF · 0,0% | 0 IFs · 0,0% |
+
+O mesmo script trava a **monotonicidade**: baixar o corte nunca pode reduzir o número de
+sinalizadas nem a carteira exposta. Se reduzisse, o semáforo estaria invertido em algum
+ponto.
+
+Repare na sensibilidade assimétrica: em Deterioração, sair de 0,75 para 0,70 vai de 10 para
+26 instituições — mais que dobra. Em Crescimento, o mesmo movimento vai de 54 para 69. O
+corte é mais decisivo onde a distribuição de scores é mais densa, e isso é argumento para
+mostrá-lo ajustável em vez de defender um número.
+
 ### Exemplo rastreado — Nu Pagamentos, 03/2026, eixo Crescimento
 
 | indicador | valor | percentil |

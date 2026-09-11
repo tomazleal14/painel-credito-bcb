@@ -26,8 +26,8 @@ import cartoes
 import catalogo
 import filtros
 import textos as _textos
-from scoring import (EIXOS, FRACAO_MINIMA, MIN_INDICADORES, PESOS_PADRAO, agenda,
-                     agenda_grandes, calcula_scores)
+from scoring import (CORTE_ALTO, EIXOS, FRACAO_MINIMA, MIN_INDICADORES, PESOS_PADRAO,
+                     agenda, agenda_grandes, calcula_scores)
 from tema import (ALTURA_GRAFICO, ALTURA_GRAFICO_GRANDE, ICONE_SEMAFORO,
                   SEMAFORO, TEMA, layout_base, monta_css)
 
@@ -40,7 +40,7 @@ LIMIAR_BOOM = 0.15
 # atualizou" olhando a tela. VERSAO muda a cada alteracao que mexe nos numeros; a
 # impressao digital e do arquivo de dados. Se o que aparece no rodape da barra lateral
 # do Cloud nao bater com o local, o Cloud esta atrasado -- e nao ha o que depurar.
-VERSAO = "2026-09-09b · cartão da Visão geral obedece ao trimestre selecionado"
+VERSAO = "2026-09-11 · corte de risco alto por eixo ajustável na barra lateral"
 
 st.set_page_config(page_title="Painel de Supervisão de Crédito — BCB",
                    page_icon="◧", layout="wide",
@@ -123,7 +123,7 @@ f = filtros.barra_lateral(ind, PESOS_PADRAO, EIXOS)
 # arquivos -- app.py novo com src/ antigo -- e o painel morreu com KeyError em plena
 # tela. Chave que faltar cai no padrao e o painel avisa, em vez de quebrar.
 _faltando = [k for k in ("dt_sel", "tcb_sel", "seg_sel", "porte_min", "pesos",
-                         "limiar", "cobertura", "ativos") if k not in f]
+                         "limiar", "cobertura", "ativos", "corte_alto") if k not in f]
 dt_sel = f.get("dt_sel", max(ind["data_base"]))
 tcb_sel = f.get("tcb_sel") or sorted(ind["tcb"].dropna().unique())
 seg_sel = f.get("seg_sel") or sorted(ind["segmento_sr"].fillna("").unique())
@@ -131,6 +131,7 @@ porte_min = f.get("porte_min", 1e9)
 pesos = f.get("pesos") or PESOS_PADRAO
 limiar = f.get("limiar", 0.65)
 cobertura = f.get("cobertura", 0.80)
+corte_alto = f.get("corte_alto", CORTE_ALTO)
 ativos = f.get("ativos") or {e: catalogo.padrao_do_eixo(e) for e in EIXOS}
 
 # aplica filtros
@@ -140,7 +141,8 @@ if base.empty:
     st.error("Nenhuma instituição atende aos filtros. Amplie a seleção na barra lateral.")
     st.stop()
 
-scored = calcula_scores(base, grupo_pares="tcb", pesos=pesos, ativos=ativos)
+scored = calcula_scores(base, grupo_pares="tcb", pesos=pesos, ativos=ativos,
+                        corte_alto=corte_alto)
 univ = scored[(scored["data_base"] == dt_sel)
               & (scored["carteira_credito_real"] >= porte_min)].copy()
 
@@ -259,7 +261,8 @@ with aba0:
                     # porque HHI do sistema e CR5 sao iguais para todas as instituicoes
                     # e nao geram percentil. Isso fica declarado no cartao.
                     n_percentis=len(comp_eixo.get(eixo, [])),
-                    componentes=comp_eixo.get(eixo, [])),
+                    componentes=comp_eixo.get(eixo, []),
+                    corte_alto=corte_alto),
                 unsafe_allow_html=True)
     # A cobertura de cada eixo saiu dos cartoes e virou UMA linha para os tres: repetida
     # em cada cartao, ela ocupava mais espaco que o dado e ainda assim so podia ser lida
@@ -664,7 +667,8 @@ def tabela_sinalizadas(eixo: str, cols: list[str]) -> None:
                 help=f"Em reais de {fmt_trimestre(BASE_DEFL)}, deflacionada pelo IPCA."),
             "Score do eixo": st.column_config.ProgressColumn(
                 "Score do eixo", format="%.3f", min_value=0.0, max_value=1.0,
-                help="Média dos percentis dos indicadores deste eixo. ≥ 0,75 = risco alto."),
+                help=f"Média dos percentis dos indicadores deste eixo. "
+                     f"≥ {cartoes.num(corte_alto, 2)} = risco alto."),
         }
         for c in cols:
             meta = catalogo.POR_CHAVE[c]
@@ -680,7 +684,9 @@ def tabela_sinalizadas(eixo: str, cols: list[str]) -> None:
             f"dentro do seu grupo de pares (mesmo TCB), no trimestre — não no recorte "
             f"filtrado. Indicadores em que maior é melhor entram invertidos. "
             f"Um percentil só não sinaliza: é a <b>média</b> deles que compara com "
-            f"0,75.</div>", unsafe_allow_html=True)
+            f"<b>{cartoes.num(corte_alto, 2)}</b>"
+            f"{'' if abs(corte_alto - CORTE_ALTO) < 1e-9 else ' (ajustado na barra lateral; o padrão é 0,75)'}"
+            f".</div>", unsafe_allow_html=True)
         st.download_button(
             f"Baixar as sinalizadas em {rot} (CSV)",
             tab.to_csv(index=False).encode("utf-8-sig"),
