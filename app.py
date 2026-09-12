@@ -125,6 +125,29 @@ def nome_curto(s: str, n: int = 26) -> str:
     return t if len(t) <= n else t[: n - 1].rstrip() + "…"
 
 
+def nomes_distintos(nomes: list[str], n: int = 44) -> list[str]:
+    """Rótulos truncados que continuam DISTINGUINDO uma instituição da outra.
+
+    Truncar pela cabeça falha quando os nomes compartilham um prefixo longo: as
+    sinalizadas em crescimento com série longa são quase todas cooperativas, e quatro
+    delas viravam a mesma legenda, "COOPERATIVA DE CRÉDITO, POUPANÇA E INVESTIM…".
+    Quando há colisão, o rótulo passa a mostrar começo E fim — é no fim que mora o que
+    diferencia ("… - SICOOB ARACOOP").
+    """
+    base = [nome_curto(x, n) for x in nomes]
+    if len(set(base)) == len(base):
+        return base
+    saida = []
+    for bruto in nomes:
+        t = nome_curto(bruto, 10_000)
+        if len(t) <= n:
+            saida.append(t)
+            continue
+        cabeca, cauda = (n - 3) // 2, (n - 3) - (n - 3) // 2
+        saida.append(f"{t[:cabeca].rstrip()}…{t[-cauda:].lstrip()}")
+    return saida
+
+
 def sem_grafico(fig: go.Figure, titulo: str = "", altura: int | None = None):
     """Aplica o layout comum e põe a legenda ACIMA do gráfico.
 
@@ -891,12 +914,24 @@ with aba1:
     # ---- 2. carteira x tendencia HP
     with l1c2:
         st.markdown(f"**{LRC['p1_2']['titulo']}**")
-        # prioriza as SINALIZADAS: o gráfico serve à pergunta da página, e mostrar as
-        # quatro de maior gap sem olhar a seleção desconecta a figura do resto
+        # CRITÉRIO: sinalizadas, com série longa o bastante, as maiores por carteira.
+        #
+        # Antes era "as 4 de maior credit gap", e isso selecionava sistematicamente as
+        # séries menos informativas: gap alto anda junto com série curta e volátil, que
+        # é o perfil de cooperativa pequena. Medido, o gráfico vinha com séries de
+        # 1, 4, 4 e 1 pontos — duas delas um ponto só, que não desenha linha.
+        # Exigir MIN_PONTOS_HP e ordenar por carteira traz quem tem história para
+        # mostrar e peso para justificar a tela.
+        MIN_PONTOS_HP = 12
+        _pontos = (scored.dropna(subset=["p1_2_credit_gap"])
+                         .groupby("cod_inst")["data_base"].nunique())
+        _longas = set(_pontos[_pontos >= MIN_PONTOS_HP].index)
         _cg = univ.dropna(subset=["p1_2_credit_gap"])
+        _cg = _cg[_cg["cod_inst"].isin(_longas)]
         _marc = _cg[_cg["sem_crescimento"] == "alto"] if "sem_crescimento" in _cg else _cg
-        cands = _marc.nlargest(4, "p1_2_credit_gap")["cod_inst"].tolist()
-        cands += [c for c in _cg.nlargest(4, "p1_2_credit_gap")["cod_inst"]
+        cands = _marc.nlargest(4, "carteira_credito_real")["cod_inst"].tolist()
+        # completa com as maiores do recorte que tenham série longa, se faltar
+        cands += [c for c in _cg.nlargest(8, "carteira_credito_real")["cod_inst"]
                   if c not in cands][:max(0, 4 - len(cands))]
         if not cands:
             st.info("Série insuficiente para o filtro HP no recorte.")
@@ -907,13 +942,16 @@ with aba1:
             # 202409, 202412, porque o primeiro traco so tem o ultimo trimestre. O
             # resultado eram rotulos fora de ordem e linhas saltando no tempo.
             eixo_x = [fmt_trimestre(x) for x in sorted(scored["data_base"].unique())]
+            _brutos = [hist[hist["cod_inst"] == c]["instituicao"].iloc[-1]
+                       for c in cands if not hist[hist["cod_inst"] == c].empty]
+            _rotulos = dict(zip(cands, nomes_distintos(_brutos, 44)))
             fig = go.Figure()
             cores = TEMA["sequencial"][2:]
             for i, cod in enumerate(cands):
                 h = hist[hist["cod_inst"] == cod].dropna(subset=["p1_2_credit_gap"])
                 if h.empty:
                     continue
-                nome = nome_curto(h["instituicao"].iloc[-1], 30)
+                nome = _rotulos.get(cod, nome_curto(h["instituicao"].iloc[-1], 44))
                 # um unico ponto nao desenha linha: vira marcador visivel
                 so_um = len(h) == 1
                 fig.add_trace(go.Scatter(
@@ -930,6 +968,13 @@ with aba1:
                              tickangle=-45, nticks=10)
             fig.update_yaxes(title="Desvio da própria tendência (%)")
             sem_grafico(fig)
+            st.markdown(
+                f"<div class='rodape-fonte'>Critério: entre as <b>sinalizadas em "
+                f"crescimento</b> com pelo menos <b>{MIN_PONTOS_HP} trimestres</b> de "
+                f"série, as <b>maiores por carteira</b>. O filtro HP precisa de "
+                f"história: ordenar por maior gap traria justamente as séries mais "
+                f"curtas, porque gap alto e série curta andam juntos.</div>",
+                unsafe_allow_html=True)
         bloco_lrc("p1_2")
 
     l2c1, l2c2 = st.columns(2)
@@ -1134,8 +1179,13 @@ with aba2:
                     hovertemplate="%{y}<br>" + nome + ": %{x:.1f}%<extra></extra>"))
             fig.update_layout(barmode="stack")
             fig.update_xaxes(title="% da carteira PF")
-            fig.update_yaxes(autorange="reversed", tickmode="linear", dtick=1)
+            fig.update_yaxes(autorange="reversed", tickmode="linear", dtick=1,
+                             automargin=True)
             sem_grafico(fig)
+            st.markdown(
+                "<div class='rodape-fonte'>Critério: as <b>12 de maior fatia em "
+                "modalidades de alto risco</b>, com as <b>sinalizadas em concentração</b> "
+                "entrando primeiro.</div>", unsafe_allow_html=True)
         bloco_lrc("p2_2")
 
     m2c1, m2c2 = st.columns(2)
@@ -1147,8 +1197,15 @@ with aba2:
                     "reg_nordeste_real": "Nordeste", "reg_norte_real": "Norte",
                     "reg_centro_oeste_real": "Centro-oeste"}
         cols_reg = {k: v for k, v in cols_reg.items() if k in univ.columns}
+        # CRITÉRIO: sinalizadas, as maiores por carteira.
+        #
+        # Antes era "as 12 de maior HHI regional", e isso é selecionar quem é
+        # monorregional por construção: medido, 7 das 12 tinham mais de 95% da carteira
+        # numa única região, com mediana de 97,4%. O gráfico virava doze barras de uma
+        # cor só — a figura se anulava. Ordenar por carteira entre as sinalizadas mostra
+        # a composição regional de quem pesa, e aí há variedade para ver.
         dr = _preferir_sinalizadas(univ.dropna(subset=["p2_4_hhi_regional"]),
-                                   "concentracao", "p2_4_hhi_regional", 12)
+                                   "concentracao", "carteira_credito_real", 12)
         if dr.empty or not cols_reg:
             st.info("Sem dados regionais no recorte.")
         else:
@@ -1162,8 +1219,15 @@ with aba2:
                     hovertemplate="%{y}<br>" + nome + ": %{x:.1f}%<extra></extra>"))
             fig.update_layout(barmode="stack")
             fig.update_xaxes(title="% da carteira por região")
-            fig.update_yaxes(autorange="reversed", tickmode="linear", dtick=1)
+            fig.update_yaxes(autorange="reversed", tickmode="linear", dtick=1,
+                             automargin=True)
             sem_grafico(fig)
+            st.markdown(
+                "<div class='rodape-fonte'>Critério: entre as <b>sinalizadas em "
+                "concentração</b>, as <b>maiores por carteira</b>. Ordenar por maior "
+                "HHI regional selecionaria quem é monorregional por construção — e as "
+                "barras sairiam todas de uma cor só.</div>",
+                unsafe_allow_html=True)
         bloco_lrc("p2_3")
 
     # ---- 4. loan-to-deposit x crescimento
@@ -1287,7 +1351,11 @@ with aba3:
             unsafe_allow_html=True)
     bloco_lrc("p3_1")
 
-    n1, n2, n3 = st.columns(3)
+    # Duas colunas, e não três: o gráfico de folga é de barras horizontais com 15 nomes
+    # de instituição, e em 1/3 da largura o Plotly cortava o começo do rótulo
+    # ("ERATIVA DE CRÉDITO DE LIV…"), a anotação do mínimo e o título do eixo. Ele passa
+    # a ocupar a linha inteira, abaixo.
+    n1, n2 = st.columns(2)
 
     # ---- 2. efeito denominador
     with n1:
@@ -1331,11 +1399,20 @@ with aba3:
         if dq.empty:
             st.info("Sem dados nesta data-base.")
         else:
-            fig = go.Figure(go.Scatter(
-                x=dq["p3_2_cobertura"] * 100, y=dq["p3_5_ativos_problematicos"] * 100,
-                mode="markers", text=_hover(dq), hoverinfo="text",
-                marker=dict(size=_tamanho(dq, 34), color=TEMA["marca"], opacity=0.55,
-                            line=dict(width=0.5, color="white"))))
+            dqd = destaque(dq, "deterioracao")
+            fig = go.Figure()
+            for _m, _n in ((False, "demais do recorte"), (True, "sinalizadas")):
+                _s = dq[dqd["marcada"].values == _m]
+                if _s.empty:
+                    continue
+                fig.add_trace(go.Scatter(
+                    x=_s["p3_2_cobertura"] * 100,
+                    y=_s["p3_5_ativos_problematicos"] * 100,
+                    mode="markers", text=_hover(_s), hoverinfo="text", name=_n,
+                    marker=dict(size=_tamanho(_s, 34),
+                                color=TEMA["risco_alto"] if _m else TEMA["marca_clara"],
+                                opacity=0.92 if _m else 0.45,
+                                line=dict(width=0.8 if _m else 0.4, color="white"))))
             fig.add_vline(x=100, line=dict(color=TEMA["risco_alto"], width=1.2, dash="dash"),
                           annotation_text="cobertura 100%")
             if len(ref_scr):
@@ -1345,28 +1422,49 @@ with aba3:
             fig.update_xaxes(title="Cobertura de provisões (%)")
             fig.update_yaxes(title="Ativos problemáticos (% da carteira)")
             sem_grafico(fig)
+            nota_destaque(dqd)
         bloco_lrc("p3_3")
 
-    # ---- 4. folga de capital
-    with n3:
-        st.markdown(f"**{LRC['p3_4']['titulo']}**")
-        dk = univ.dropna(subset=["p3_6_folga_capital_pp"]).nsmallest(15, "p3_6_folga_capital_pp")
-        if dk.empty:
-            st.info("Sem dados de capital nesta data-base.")
-        else:
-            cores = [TEMA["risco_alto"] if v < 2 else
-                     TEMA["risco_medio"] if v < 5 else TEMA["marca"]
-                     for v in dk["p3_6_folga_capital_pp"]]
-            fig = go.Figure(go.Bar(
-                x=dk["p3_6_folga_capital_pp"], y=[nome_curto(n, 30) for n in dk["instituicao"]],
-                orientation="h", marker_color=cores,
-                hovertemplate="%{y}<br>folga: %{x:.2f} p.p.<extra></extra>"))
-            fig.add_vline(x=0, line=dict(color=TEMA["risco_alto"], width=1.5),
-                          annotation_text=f"mínimo {MIN_BASILEIA}%")
-            fig.update_xaxes(title="Folga sobre o mínimo (p.p.)")
-            fig.update_yaxes(autorange="reversed", tickmode="linear", dtick=1)
-            sem_grafico(fig)
-        bloco_lrc("p3_4")
+    # ---- 4. folga de capital (linha inteira: 15 nomes não cabem em 1/3 da largura)
+    st.markdown(f"**{LRC['p3_4']['titulo']}**")
+    dk = univ.dropna(subset=["p3_6_folga_capital_pp"]).nsmallest(15, "p3_6_folga_capital_pp")
+    if dk.empty:
+        st.info("Sem dados de capital nesta data-base.")
+    else:
+        # A COR mede a distância do mínimo regulatório, que é a leitura do gráfico.
+        # O CONTORNO marca quem está sinalizado em deterioração — assim as duas
+        # informações convivem sem uma apagar a outra.
+        cores = [TEMA["risco_alto"] if v < 2 else
+                 TEMA["risco_medio"] if v < 5 else TEMA["marca"]
+                 for v in dk["p3_6_folga_capital_pp"]]
+        marc = (dk["sem_deterioracao"] == "alto") if "sem_deterioracao" in dk else \
+            pd.Series(False, index=dk.index)
+        fig = go.Figure(go.Bar(
+            x=dk["p3_6_folga_capital_pp"],
+            y=[nome_curto(n, 44) for n in dk["instituicao"]],
+            orientation="h", marker_color=cores,
+            marker_line=dict(width=[2.2 if m else 0.5 for m in marc],
+                             color=[TEMA["texto"] if m else "white" for m in marc]),
+            customdata=[("sinalizada em deterioração" if m else "não sinalizada")
+                        for m in marc],
+            hovertemplate="%{y}<br>folga: %{x:.2f} p.p.<br>%{customdata}<extra></extra>"))
+        fig.add_vline(x=0, line=dict(color=TEMA["risco_alto"], width=1.5),
+                      annotation_text=f"mínimo {MIN_BASILEIA}%",
+                      annotation_position="bottom right")
+        fig.update_xaxes(title="Folga sobre o mínimo (p.p.)", automargin=True)
+        fig.update_yaxes(autorange="reversed", tickmode="linear", dtick=1,
+                         automargin=True)
+        sem_grafico(fig, altura=460)
+        st.markdown(
+            f"<div class='rodape-fonte'>As <b>15 menores folgas</b> do recorte. A cor "
+            f"mede a distância do mínimo de {cartoes.num(MIN_BASILEIA, 1)}% — "
+            f"<span style='color:{TEMA['risco_alto']}'>■</span> abaixo de 2 p.p., "
+            f"<span style='color:{TEMA['risco_medio']}'>■</span> de 2 a 5 p.p., "
+            f"<span style='color:{TEMA['marca']}'>■</span> acima — e o "
+            f"<b>contorno escuro</b> marca as <b>{int(marc.sum())}</b> que também estão "
+            f"sinalizadas em deterioração. Barra à esquerda do zero = capital abaixo do "
+            f"exigido.</div>", unsafe_allow_html=True)
+    bloco_lrc("p3_4")
 
     fonte("BCB/IF.data (carteira por instrumentos financeiros, Ativo e Informações de Capital); "
           "BCB/SCR.data para a referência de sistema; SGS 21082/21112/21086 para inadimplência agregada.")
