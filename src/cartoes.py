@@ -17,7 +17,8 @@ import pandas as pd
 import catalogo
 from scoring import CORTE_ALTO, CORTE_MEDIO
 from tema import (COMPOSICAO_CORES, SEMAFORO, SEMAFORO_SOFT, TEMA,
-                  barra_composicao, legenda_composicao, sparkline)
+                  barra_composicao, distribuicao, faixa_escala, fora_da_escala,
+                  legenda_composicao)
 from textos import md_html
 
 # FORMATO e derivado do catalogo, para nao haver duas listas de indicadores no projeto.
@@ -87,93 +88,67 @@ def num(v: float, casas: int) -> str:
     return f"{v:,.{casas}f}".replace(",", " ").replace(".", ",").replace(" ", ".")
 
 
-def _serie_mediana(df: pd.DataFrame, col: str,
-                   indice: list | None = None) -> pd.Series:
-    """Mediana por trimestre -- a serie que o sparkline desenha.
-
-    NAO remove os trimestres vazios: eles precisam chegar como NaN para o sparkline
-    desenhar um buraco. Removê-los encostaria os pontos vizinhos e inventaria uma
-    continuidade que o dado nao tem.
-
-    `indice` e a lista COMPLETA de data-bases do painel, e e obrigatorio quando `df` ja
-    vem filtrado (ex.: so as instituicoes sinalizadas). Sem ele, um trimestre em que
-    NINGUEM foi sinalizado nao gera grupo nenhum no groupby e simplesmente desaparece do
-    indice -- o oposto do que esta docstring promete. Foi o que acontecia em P1: a serie
-    tinha 21 pontos contiguos em vez de 29 com buraco em 2025, o sparkline ligava
-    2024Q4 a 2026Q1, e o delta de `iloc[-5]` caia em 2024Q1 e era rotulado "em 12 meses"
-    sendo uma distancia de dois anos.
-    """
-    if col not in df.columns:
-        return pd.Series(dtype=float)
-    s = (df.replace([np.inf, -np.inf], np.nan)
-           .groupby("data_base")[col].median().sort_index())
-    if indice is not None:
-        s = s.reindex(sorted(indice))
-    return s
-
-
-def cartao_indicador(df_hist: pd.DataFrame, df_atual: pd.DataFrame, col: str,
+def cartao_indicador(df_atual: pd.DataFrame, col: str,
                      nota: str = "", glossario: dict | None = None,
-                     eixo: str | None = None, rotulo_eixo: str = "") -> str:
-    """HTML de um cartao de indicador.
+                     eixo: str | None = None, rotulo_eixo: str = "",
+                     data_base: int | None = None) -> str:
+    """HTML de um cartao de indicador: a FOTOGRAFIA do trimestre selecionado.
 
     O valor em destaque e a mediana das instituicoes SINALIZADAS naquele eixo -- as
-    mesmas que compoem o numero da Visao geral --, com o recorte inteiro entre
-    parenteses como referencia.
+    mesmas que compoem o numero da Visao geral --, com o recorte inteiro ao lado como
+    referencia.
 
     Antes o cartao mostrava a mediana das 258 do recorte, o que descrevia outra
     populacao: em 03/2026 exibia inadimplencia de 4,03% (o recorte) sob o titulo de um
     eixo cujas 10 sinalizadas tinham 8,61%. Nao dava para relacionar o cartao com a
     selecao, porque de fato nao havia relacao.
+
+    NAO HA MAIS MINISSERIE. Os indicadores tem 3, 21, 25 e 29 trimestres, varios com
+    buraco no meio, e desenhar serie temporal sobre dado esparso exigia tres linhas de
+    ressalva por cartao -- amplitude declarada, delta que se anula, aviso de lacuna --
+    para um grafico que ainda assim induzia a ler continuidade onde nao ha. A cobertura
+    temporal, que e informacao relevante, continua no expander "Cobertura de cada
+    indicador", onde tem espaco para ser explicada em vez de insinuada.
     """
-    rotulo, unidade, fator, casas, sentido = FORMATO.get(
+    rotulo, unidade, fator, casas, _sentido = FORMATO.get(
         col, (col, "", 1, 2, "neutro"))
     dica = _dica(glossario, col)
 
     col_sem = f"sem_{eixo}" if eixo else None
     tem_marca = bool(col_sem and col_sem in df_atual.columns)
     marcadas = df_atual[df_atual[col_sem] == "alto"] if tem_marca else df_atual
-    hist_marc = df_hist[df_hist[col_sem] == "alto"] if (
-        tem_marca and col_sem in df_hist.columns) else df_hist
 
-    # o indice vem de df_hist (todas as instituicoes), nao de hist_marc: e o calendario
-    # do painel, e nao o subconjunto de trimestres em que houve alguem sinalizado
-    calendario = sorted(df_hist["data_base"].unique()) if "data_base" in df_hist else None
-    serie = _serie_mediana(hist_marc, col, indice=calendario) * fator
-    atual = (marcadas[col].replace([np.inf, -np.inf], np.nan).dropna()
+    atual = (marcadas[col].replace([np.inf, -np.inf], np.nan).dropna() * fator
              if col in marcadas else pd.Series(dtype=float))
-    todas = (df_atual[col].replace([np.inf, -np.inf], np.nan).dropna()
+    todas = (df_atual[col].replace([np.inf, -np.inf], np.nan).dropna() * fator
              if col in df_atual else pd.Series(dtype=float))
-    valor = float(atual.median()) * fator if len(atual) else float("nan")
+    valor = float(atual.median()) if len(atual) else float("nan")
     n = len(atual)
 
-    # variacao contra 4 trimestres atras (mesma data-base do ano anterior)
-    # so compara se AMBAS as pontas existem: com buraco no meio, um delta seria inventado
-    delta_txt, cor_delta = "—", TEMA["texto_3"]
-    if len(serie) >= 5 and pd.notna(serie.iloc[-1]) and pd.notna(serie.iloc[-5]):
-        d = serie.iloc[-1] - serie.iloc[-5]
-        piora = (d > 0) if sentido == "maior_pior" else (d < 0)
-        cor_delta = TEMA["risco_alto"] if piora else TEMA["risco_baixo"]
-        seta = "▲" if d > 0 else ("▼" if d < 0 else "•")
-        delta_txt = f"{seta} {num(abs(d), casas)} em 12 meses"
-    elif len(serie) >= 5 and pd.notna(serie.iloc[-1]):
-        # a ponta de 4 trimestres atras cai numa lacuna: qualquer numero aqui seria a
-        # diferenca contra outro ano, nao contra 12 meses
-        delta_txt = "sem comparação de 12 meses — há lacuna 4 trimestres atrás"
-    elif len(serie) < 5:
-        delta_txt = f"série curta demais para 12 meses ({len(serie.dropna())} trim.)"
+    if data_base is None and "data_base" in df_atual and len(df_atual):
+        data_base = int(df_atual["data_base"].iloc[0])
+    quando = f"{str(data_base)[4:6]}/{str(data_base)[:4]}" if data_base else "o trimestre"
 
-    cor_linha = TEMA["acento"]
-    _s = serie.dropna()
-    spark = sparkline(list(serie.values), cor=cor_linha,
-                      linha_base=float(_s.median()) if len(_s) else None)
-    # amplitude declarada: sem isso, a autoescala faz variacao minima parecer drama
-    faixa_serie = (f"série: {num(_s.min(), casas)} a {num(_s.max(), casas)}{unidade} "
-                   f"em {len(_s)} trim." if len(_s) else "")
+    grafico, eixo_html, escala_txt = "", "", ""
+    if len(todas) >= 2:
+        lo, hi = faixa_escala(todas)
+        grafico = distribuicao(todas, atual)
+        eixo_html = (f"<div class='dist-eixo'><span>{num(lo, casas)}{unidade}</span>"
+                     f"<span>{num(hi, casas)}{unidade}</span></div>")
+        n_abaixo, n_acima = fora_da_escala(atual, lo, hi)
+        fora = ""
+        if n_abaixo or n_acima:
+            partes = []
+            if n_abaixo:
+                partes.append(f"{n_abaixo} abaixo")
+            if n_acima:
+                partes.append(f"{n_acima} acima")
+            fora = f" · {' e '.join(partes)} da escala"
+        escala_txt = (f"distribuição do recorte em {quando} · "
+                      f"p10 {num(float(todas.quantile(.10)), casas)}{unidade} · "
+                      f"p90 {num(float(todas.quantile(.90)), casas)}{unidade}{fora}")
 
-    p10 = float(todas.quantile(0.10)) * fator if len(todas) else float("nan")
-    p90 = float(todas.quantile(0.90)) * fator if len(todas) else float("nan")
-    med_recorte = float(todas.median()) * fator if len(todas) else float("nan")
+    med_recorte = float(todas.median()) if len(todas) else float("nan")
 
     # Os DOIS valores lado a lado: as sinalizadas (que explicam a selecao) e o recorte
     # inteiro (a referencia). Sem o par, o cartao ou descreve a populacao errada ou
@@ -190,8 +165,7 @@ def cartao_indicador(df_hist: pd.DataFrame, df_atual: pd.DataFrame, col: str,
           <div class="par-val">{num(med_recorte, casas)}<span class="u">{unidade}</span></div>
         </div>
       </div>
-      <div class="cartao-releitura">medianas · faixa do recorte
-        {num(p10, casas)} a {num(p90, casas)} (p10–p90)</div>"""
+      <div class="cartao-releitura">medianas do trimestre</div>"""
     else:
         par = f"""
       <div class="cartao-valor">{num(valor, casas)}<span class="unidade"> {unidade}</span></div>
@@ -202,9 +176,9 @@ def cartao_indicador(df_hist: pd.DataFrame, df_atual: pd.DataFrame, col: str,
       <div class="cartao-topo"><span class="cartao-rotulo termo"
         {f'title="{dica}"' if dica else ''}>{rotulo}</span></div>
       {par}
-      <div class="cartao-spark">{spark}</div>
-      <div class="cartao-escala">{faixa_serie}</div>
-      <div class="cartao-meta" style="color:{cor_delta}">{delta_txt}</div>
+      <div class="cartao-dist">{grafico}</div>
+      {eixo_html}
+      <div class="cartao-escala">{escala_txt}</div>
       <div class="cartao-comp">{nota or '&nbsp;'}</div>
     </div>
     """

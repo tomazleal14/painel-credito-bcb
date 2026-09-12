@@ -23,6 +23,9 @@ Regras que sobrevivem a troca de paleta:
 """
 from __future__ import annotations
 
+import numpy as np
+import pandas as pd
+
 # ---------------------------------------------------------------- cores
 TEMA = {
     # superficies -- neutro frio levemente azulado, na linha do BCB
@@ -125,154 +128,111 @@ def layout_base(titulo: str = "", altura: int | None = None) -> dict:
     }
 
 
-# ---------------------------------------------------------------- sparkline
-def sparkline(valores, largura: int = 168, altura: int = 34,
-              cor: str | None = None, linha_base: float | None = None,
-              piso_zero: bool = False, teto_minimo: float | None = None) -> str:
-    """SVG inline de uma minissérie. Leve de proposito: um grafico Plotly por cartao
-    deixaria a pagina lenta, e aqui basta a FORMA da serie, nao a leitura precisa.
+# ------------------------------------------------- distribuicao do trimestre
+def faixa_escala(valores, lo_q: float = 0.05, hi_q: float = 0.95) -> tuple[float, float]:
+    """Miolo da distribuicao do recorte, para servir de escala do desenho.
 
-    Valores ausentes (None/NaN) viram BURACO: a linha e quebrada em segmentos e o
-    trecho sem dado fica marcado com um tracejado fraco. Ligar os pontos por cima de
-    uma lacuna desenharia uma queda e uma recuperacao que nao existiram -- foi o que
-    acontecia na virada da Res. 4.966, quando P1 ficou sem indicadores por 4 trimestres.
+    NAO se estica a escala para caber o extremo. Em crescimento, uma sinalizada a 165%
+    comprimiria a caixa inteira num canto de 20px e a figura deixaria de mostrar o que
+    importa -- a posicao das sinalizadas DENTRO da distribuicao. Quem fica fora e
+    contado e declarado em texto, nao desenhado fora de proporcao.
     """
-    bruto = list(valores)
-    v = [None if (x is None or x != x) else float(x) for x in bruto]
-    validos = [x for x in v if x is not None]
-    if len(validos) < 2:
+    v = pd.Series(valores).replace([np.inf, -np.inf], np.nan).dropna()
+    if v.empty:
+        return 0.0, 1.0
+    lo, hi = float(v.quantile(lo_q)), float(v.quantile(hi_q))
+    if hi <= lo:
+        lo, hi = float(v.min()), float(v.max())
+    if hi <= lo:
+        hi = lo + (abs(lo) or 1.0)
+    return lo, hi
+
+
+def distribuicao(valores, marcados=None, largura: int = 330, altura: int = 52) -> str:
+    """Fotografia do trimestre: forma da distribuicao + caixa + onde estao as marcadas.
+
+    Substitui a minisserie nos cartoes de indicador. A serie temporal nao servia: os
+    indicadores tem 3, 21, 25 e 29 trimestres, varios com buraco no meio, e uma linha
+    sobre serie esparsa desenha continuidade onde nao ha dado. Esta figura descreve so o
+    corte transversal do trimestre escolhido -- nao tem historico, logo nao tem buraco.
+
+    Tres camadas, de cima para baixo:
+      histograma claro   a FORMA da distribuicao do recorte (essa instituicao e rara ou
+                         tem companhia?)
+      caixa azul         p25-p75, com o traco na mediana do recorte
+      riscos vermelhos   cada instituicao marcada; o ponto e a mediana delas
+
+    Sem texto dentro do SVG: ele estica com a coluna (preserveAspectRatio="none") e o
+    glifo esticaria junto. Rotulos de escala ficam em HTML, no chamador.
+    """
+    v = pd.Series(valores).replace([np.inf, -np.inf], np.nan).dropna()
+    m = (pd.Series(marcados).replace([np.inf, -np.inf], np.nan).dropna()
+         if marcados is not None else pd.Series(dtype=float))
+    if len(v) < 2:
         return f'<svg width="{largura}" height="{altura}"></svg>'
 
-    # ESCALA. Sem ancorar, a autoescala transforma qualquer variacao na altura inteira
-    # do cartao: uma serie que vai de 0,1% a 0,4% era desenhada com o mesmo drama de uma
-    # que vai de 0% a 40%. Para grandezas que sao fatia de um todo, o zero e o piso
-    # honesto; `teto_minimo` evita que uma serie quase plana ocupe tudo assim mesmo.
-    lo, hi = min(validos), max(validos)
-    if piso_zero:
-        lo = min(0.0, lo)
-    if teto_minimo is not None:
-        hi = max(hi, teto_minimo)
-    span = (hi - lo) or 1.0
-    pad = 3
-    dx = (largura - 2 * pad) / (len(v) - 1) if len(v) > 1 else 0
+    lo, hi = faixa_escala(v)
+    pad = 4
+    util = largura - 2 * pad
 
-    def y(val: float) -> float:
-        return altura - pad - (val - lo) / span * (altura - 2 * pad)
+    def x(val: float) -> float:
+        return pad + (min(max(val, lo), hi) - lo) / (hi - lo) * util
 
-    cor = cor or TEMA["acento"]
-
-    # segmentos contiguos de dado presente
-    segmentos, atual = [], []
-    for i, val in enumerate(v):
-        if val is None:
-            if len(atual) > 1:
-                segmentos.append(atual)
-            atual = []
-        else:
-            atual.append((pad + i * dx, y(val)))
-    if len(atual) > 1:
-        segmentos.append(atual)
-
-    base = ""
-    if linha_base is not None and lo <= linha_base <= hi:
-        yb = y(linha_base)
-        base = (f'<line x1="{pad}" y1="{yb:.1f}" x2="{largura - pad}" y2="{yb:.1f}" '
-                f'stroke="{TEMA["eixo"]}" stroke-width="1" stroke-dasharray="2,2" '
-                f'opacity="0.55"/>')
-
-    # faixa tracejada onde falta dado, para o buraco ser visivel e nao parecer corte
-    lacunas = ""
-    i = 0
-    while i < len(v):
-        if v[i] is None:
-            j = i
-            while j < len(v) and v[j] is None:
-                j += 1
-            x0, x1 = pad + i * dx, pad + (j - 1) * dx
-            lacunas += (f'<rect x="{x0 - dx/2:.1f}" y="{pad}" '
-                        f'width="{max(x1 - x0 + dx, 2):.1f}" height="{altura - 2*pad}" '
-                        f'fill="{TEMA["eixo"]}" opacity="0.10"/>')
-            i = j
-        else:
-            i += 1
-
-    corpo = ""
-    for seg in segmentos:
-        pts = " ".join(f"{x:.1f},{yy:.1f}" for x, yy in seg)
-        corpo += (f'<polygon points="{seg[0][0]:.1f},{altura - pad} {pts} '
-                  f'{seg[-1][0]:.1f},{altura - pad}" fill="{cor}" opacity="0.10"/>')
-        corpo += (f'<polyline points="{pts}" fill="none" stroke="{cor}" '
-                  f'stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>')
-
-    ponta = ""
-    ultimo = next(((i, x) for i, x in reversed(list(enumerate(v))) if x is not None), None)
-    if ultimo:
-        ponta = (f'<circle cx="{pad + ultimo[0] * dx:.1f}" cy="{y(ultimo[1]):.1f}" '
-                 f'r="2.6" fill="{cor}"/>')
-
-    return (f'<svg width="{largura}" height="{altura}" viewBox="0 0 {largura} {altura}" '
-            f'preserveAspectRatio="none" style="display:block">'
-            f'{lacunas}{base}{corpo}{ponta}</svg>')
-
-
-# Sem chamador desde que a Visao geral trocou a serie temporal pela composicao da
-# carteira. Mantida porque continua correta e e a forma certa de desenhar serie esparsa
-# (trimestre sem dado nao ganha barra) se o historico voltar a algum cartao.
-def barras(valores, rotulos=None, largura: int = 200, altura: int = 38,
-           cor: str | None = None, destaque_ultimo: bool = True) -> str:
-    """Minissérie em BARRAS, uma por trimestre.
-
-    Substitui a linha nos cartoes de eixo por um motivo concreto: linha sobre serie
-    esparsa desenha continuidade onde nao ha dado, e a autoescala fazia 0,3 ponto
-    percentual parecer um despenhadeiro. Com barras, trimestre sem dado simplesmente
-    NAO TEM BARRA -- a ausencia fica legivel sem precisar de legenda -- e a altura e
-    sempre proporcional ao valor, medida a partir do zero.
-    """
-    v = [None if (x is None or x != x) else float(x) for x in valores]
-    validos = [x for x in v if x is not None]
-    if not validos:
-        return f'<svg width="{largura}" height="{altura}"></svg>'
-
-    hi = max(max(validos), 1e-9)
-    n = len(v)
-    pad_b = 7                      # espaco para a regua do eixo
-    espaco = largura / n
-    w = max(espaco * 0.62, 1.4)
-    cor = cor or TEMA["acento"]
-    util = altura - pad_b - 2
-
+    y_base = altura * 0.52          # linha do eixo: histograma acima, caixa abaixo
+    alt_hist = y_base - 3
     partes = []
-    for i, val in enumerate(v):
-        x = i * espaco + (espaco - w) / 2
-        if val is None:
-            # marca discreta de ausencia, na linha do eixo
-            partes.append(f'<rect x="{x:.1f}" y="{altura - pad_b - 1:.1f}" '
-                          f'width="{w:.1f}" height="1.5" fill="{TEMA["eixo"]}" '
-                          f'opacity="0.35"/>')
+
+    nb = 30
+    bins = np.linspace(lo, hi, nb + 1)
+    h, _ = np.histogram(np.clip(v, lo, hi), bins=bins)
+    topo = max(int(h.max()), 1)
+    bw = util / nb
+    for i, n in enumerate(h):
+        if n <= 0:
             continue
-        h = max((val / hi) * util, 0.8)
-        ultimo_valido = destaque_ultimo and all(x is None for x in v[i + 1:])
-        c = TEMA["texto"] if ultimo_valido else cor
-        op = "1" if ultimo_valido else "0.55"
-        partes.append(f'<rect x="{x:.1f}" y="{altura - pad_b - h:.1f}" '
-                      f'width="{w:.1f}" height="{h:.1f}" fill="{c}" opacity="{op}" '
-                      f'rx="0.6"/>')
+        a = n / topo * alt_hist
+        partes.append(f'<rect x="{pad + i*bw:.2f}" y="{y_base - a:.2f}" '
+                      f'width="{max(bw - 0.8, 0.6):.2f}" height="{a:.2f}" '
+                      f'fill="{TEMA["marca_clara"]}" opacity="0.6"/>')
+    partes.append(f'<line x1="{pad}" y1="{y_base:.1f}" x2="{largura - pad}" '
+                  f'y2="{y_base:.1f}" stroke="{TEMA["eixo"]}" stroke-width="0.8"/>')
 
-    eixo = (f'<line x1="0" y1="{altura - pad_b:.1f}" x2="{largura}" '
-            f'y2="{altura - pad_b:.1f}" stroke="{TEMA["borda"]}" stroke-width="1"/>')
+    q25, q50, q75 = (float(v.quantile(p)) for p in (.25, .50, .75))
+    y_cx = y_base + 2
+    partes.append(f'<rect x="{x(q25):.2f}" y="{y_cx:.1f}" '
+                  f'width="{max(x(q75) - x(q25), 1.5):.2f}" height="9" '
+                  f'fill="{TEMA["marca"]}" opacity="0.5" rx="1.5"/>')
+    partes.append(f'<line x1="{x(q50):.2f}" y1="{y_cx - 1:.1f}" x2="{x(q50):.2f}" '
+                  f'y2="{y_cx + 10:.1f}" stroke="{TEMA["acento_ink"]}" stroke-width="2"/>')
 
-    marcas = ""
-    if rotulos:
-        for i, rot in enumerate(rotulos):
-            if rot:
-                marcas += (f'<text x="{i * espaco + espaco/2:.1f}" y="{altura - 0.5:.1f}" '
-                           f'font-size="7.5" fill="{TEMA["texto_3"]}" '
-                           f'text-anchor="middle">{rot}</text>')
+    y_rug = y_cx + 12
+    for val in m[(m >= lo) & (m <= hi)]:
+        partes.append(f'<line x1="{x(val):.2f}" y1="{y_rug:.1f}" x2="{x(val):.2f}" '
+                      f'y2="{min(y_rug + 6, altura):.1f}" stroke="{TEMA["risco_alto"]}" '
+                      f'stroke-width="1.4" opacity="0.8"/>')
+    if len(m):
+        # traco, e nao circulo: o SVG estica com a coluna (preserveAspectRatio="none")
+        # e um <circle> viraria elipse numa tela larga. O traco vertical e imune ao
+        # esticamento e ecoa a marca da mediana do recorte, logo acima.
+        xm = x(float(m.median()))
+        partes.append(f'<line x1="{xm:.2f}" y1="{y_cx - 3:.1f}" x2="{xm:.2f}" '
+                      f'y2="{y_rug + 6:.1f}" stroke="#fff" stroke-width="4"/>')
+        partes.append(f'<line x1="{xm:.2f}" y1="{y_cx - 3:.1f}" x2="{xm:.2f}" '
+                      f'y2="{y_rug + 6:.1f}" stroke="{TEMA["risco_alto"]}" '
+                      f'stroke-width="2"/>')
 
     return (f'<svg width="{largura}" height="{altura}" viewBox="0 0 {largura} {altura}" '
-            f'style="display:block;width:100%">{"".join(partes)}{eixo}{marcas}</svg>')
+            f'preserveAspectRatio="none" style="display:block;width:100%">'
+            f'{"".join(partes)}</svg>')
 
 
+def fora_da_escala(valores, lo: float, hi: float) -> tuple[int, int]:
+    """Quantos ficam abaixo e acima da escala desenhada."""
+    v = pd.Series(valores).replace([np.inf, -np.inf], np.nan).dropna()
+    return int((v < lo).sum()), int((v > hi).sum())
+
+
+# --------------------------------------------------- composicao da carteira
 def _pct_br(v: float, casas: int = 1) -> str:
     return f"{v:.{casas}f}".replace(".", ",")
 
@@ -439,6 +399,12 @@ def _css(t: dict) -> str:
   .cartao-meta {{ font-size: {t["cartao_rodape"]}px; color: {TEMA['texto_3']}; margin-top: 7px;
                   line-height: 1.5; }}
   .cartao-spark {{ margin: 4px 0 2px 0; }}
+  /* distribuicao do trimestre: os rotulos de escala ficam em HTML, nao dentro do SVG,
+     porque o SVG estica com a coluna e deformaria o glifo junto */
+  .cartao-dist {{ margin: 6px 0 0 0; }}
+  .dist-eixo {{ display: flex; justify-content: space-between;
+                font-size: 9.5px; color: {TEMA['texto_3']};
+                font-variant-numeric: tabular-nums; margin: 1px 0 3px 0; }}
   .cartao-comp {{ font-size: {t["cartao_rodape"]}px; color: {TEMA['texto_3']}; line-height: 1.65;
                   border-top: 1px solid {TEMA['borda']}; padding-top: 8px;
                   margin-top: 9px; }}

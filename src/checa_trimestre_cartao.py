@@ -80,26 +80,23 @@ def main() -> int:
             falhas.append(f"{eixo}: o numero nao varia entre trimestres "
                           f"({len(distintos)} valor distinto) -- suspeita de leitura fixa")
 
-    # (4) a minisserie do cartao de INDICADOR cobre o calendario inteiro, com NaN nas
-    # lacunas -- e nao so os trimestres em que houve alguem sinalizado. Sem isso, o
-    # groupby some com o trimestre vazio, o sparkline liga 2024Q4 a 2026Q1 e o delta de
-    # iloc[-5] cai dois anos atras sendo rotulado "em 12 meses".
-    print("\nMINISSERIE DOS CARTOES DE INDICADOR — o indice cobre o calendario?")
+    # (4) o cartao de INDICADOR desenha a distribuicao do trimestre, e nada dela pode
+    # vazar de outro trimestre. A checagem antiga era sobre a minisserie, que deixou de
+    # existir: serie temporal sobre indicador com buraco foi substituida pela fotografia
+    # do corte transversal.
+    print("\nDISTRIBUICAO DOS CARTOES DE INDICADOR — usa so o trimestre pedido?")
     for eixo, cols in cartoes.indicadores_por_eixo(ativos).items():
-        marc = hist[hist[f"sem_{eixo}"] == "alto"]
         for c in cols:
-            s = cartoes._serie_mediana(marc, c, indice=dts)
-            if list(s.index) != list(dts):
-                falhas.append(f"{c}: indice da minisserie tem {len(s)} pontos, "
-                              f"calendario tem {len(dts)}")
-                continue
-            if len(s) >= 5 and pd.notna(s.iloc[-1]) and pd.notna(s.iloc[-5]):
-                ult, ant = int(s.index[-1]), int(s.index[-5])
-                meses = ((ult // 100) * 12 + ult % 100) - ((ant // 100) * 12 + ant % 100)
-                if meses != 12:
-                    falhas.append(f"{c}: delta rotulado '12 meses' compara {ant} com "
-                                  f"{ult} ({meses} meses)")
-        print(f"   {eixo:14s} {len(cols)} indicadores · índice de {len(dts)} pontos OK")
+            for d in (dts[-1], dts[len(dts) // 2]):
+                u_d = hist[hist["data_base"] == d]
+                html = cartoes.cartao_indicador(u_d, c, eixo=eixo, data_base=d)
+                esperado = f"{str(d)[4:6]}/{str(d)[:4]}"
+                if "distribuição do recorte" in html and esperado not in html:
+                    falhas.append(f"{c} em {d}: o cartao nao declara {esperado}")
+                vals = u_d[c].replace([np.inf, -np.inf], np.nan).dropna()
+                if len(vals) >= 2 and "<svg" not in html:
+                    falhas.append(f"{c} em {d}: {len(vals)} valores e nenhum grafico")
+        print(f"   {eixo:14s} {len(cols)} indicadores · 2 data-bases cada OK")
 
     print()
     if falhas:

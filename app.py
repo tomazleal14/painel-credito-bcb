@@ -40,7 +40,7 @@ LIMIAR_BOOM = 0.15
 # atualizou" olhando a tela. VERSAO muda a cada alteracao que mexe nos numeros; a
 # impressao digital e do arquivo de dados. Se o que aparece no rodape da barra lateral
 # do Cloud nao bater com o local, o Cloud esta atrasado -- e nao ha o que depurar.
-VERSAO = "2026-09-11 · corte de risco alto por eixo ajustável na barra lateral"
+VERSAO = "2026-09-11b · cartões de P1/P2/P3 mostram a distribuição do trimestre"
 
 st.set_page_config(page_title="Painel de Supervisão de Crédito — BCB",
                    page_icon="◧", layout="wide",
@@ -608,8 +608,9 @@ def cobertura_indicadores(eixo: str, cols: list[str]) -> None:
         faixa = ""
         if sem_score:
             faixa = (f" Sem score em {faixas_de_trimestres(sem_score)}: nesses trimestres "
-                     f"nenhuma instituição chega ao mínimo, e a minissérie mostra "
-                     f"<b>lacuna</b> em vez de ligar os pontos.")
+                     f"nenhuma instituição chega ao mínimo, e o eixo fica <b>vazio</b> — "
+                     f"selecionar uma dessas data-bases na barra lateral mostra o cartão "
+                     f"sem número, e não um zero.")
         st.markdown(
             f"<div class='rodape-fonte'>O score é a média dos percentis "
             f"<b>disponíveis</b>: um indicador ausente reduz o divisor, não entra como "
@@ -707,26 +708,27 @@ def faixa_cartoes(pergunta: str) -> None:
         with alvo:
             st.markdown(
                 cartoes.cartao_indicador(
-                    hist, univ, c, NOTAS_CARTAO.get(c, ""),
+                    univ, c, NOTAS_CARTAO.get(c, ""),
                     glossario=T.glossario_indicadores,
                     eixo=eixo,
-                    rotulo_eixo=T.bruto(f"eixos.{eixo}.rotulo", eixo).lower()),
+                    rotulo_eixo=T.bruto(f"eixos.{eixo}.rotulo", eixo).lower(),
+                    data_base=dt_sel),
                 unsafe_allow_html=True)
     n_marc = int((univ[f"sem_{eixo}"] == "alto").sum())
-    # quantos trimestres a serie deste eixo realmente cobre
-    hist_marc = hist[hist[f"sem_{eixo}"] == "alto"]
-    n_trim = int(hist_marc["data_base"].nunique())
     st.markdown(
         f"<div class='rodape-fonte'>Cada cartão traz os <b>dois</b> valores: a mediana "
         f"das <b>{n_marc}</b> sinalizadas neste eixo — as mesmas que formam o número da "
         f"Visão geral — e a do recorte inteiro ({len(univ)} instituições), como "
         f"referência.<br>"
-        f"<b>A seleção das {n_marc} usa apenas o trimestre corrente "
-        f"({fmt_trimestre(dt_sel)}):</b> o percentil de cada indicador é calculado no "
-        f"corte transversal, entre as instituições do mesmo TCB. A minissérie é "
-        f"<i>contexto</i>, não entra no critério — ela cobre {n_trim} trimestre"
-        f"{'s' if n_trim != 1 else ''} e sua escala parte de zero, com a amplitude "
-        f"declarada sob cada gráfico.</div><div style='height:6px'></div>",
+        f"<b>O gráfico é a distribuição do recorte em {fmt_trimestre(dt_sel)}</b>, não "
+        f"uma série no tempo: o histograma claro dá a forma, a barra azul é o intervalo "
+        f"p25–p75 com o traço escuro na mediana, e os riscos vermelhos são cada uma das "
+        f"{n_marc} sinalizadas — o traço vermelho é a mediana delas. É exatamente o que o "
+        f"<b>percentil</b> mede, e o percentil é o que decide a seleção. A escala vai do "
+        f"p05 ao p95 do recorte; quem fica fora é contado no texto, e não desenhado fora "
+        f"de proporção.<br>"
+        f"A <b>cobertura no tempo</b> de cada indicador — que varia de 3 a 29 trimestres "
+        f"— está no bloco abaixo.</div><div style='height:6px'></div>",
         unsafe_allow_html=True)
     st.markdown(
         f"<div class='aviso'><b>Cobertura da série neste eixo.</b> "
