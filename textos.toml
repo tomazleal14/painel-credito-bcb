@@ -512,6 +512,19 @@ p2_3_pct_alto_risco = """
 Fatia da carteira de pessoa física em cartão de crédito e empréstimo sem consignação. |
 São as modalidades sem garantia real: pouco volume, muita margem e muita perda potencial.
 | Em % da carteira PF. Instituições que não operam PF ficam sem valor, não com zero.
+
+**A modalidade é proxy de risco, e a proxy vale para varejo.** "Empréstimo sem consignação
+em folha" é caro e inadimplente quando o tomador é pessoa física de varejo. Fora do varejo
+a mesma rubrica abriga outra coisa — em banco de investimento, crédito *lombard*,
+garantido pela carteira de investimentos do cliente, que o IF.data não tem modalidade para
+registrar. O indicador chegou a marcar **100% de alto risco** para uma instituição com 72
+clientes, ticket de R$ 45,2 milhões e inadimplência de **0,00%**: o sinal invertido.
+
+Por isso o indicador fica **vazio** onde o ticket médio supera o **p90 do recorte** no
+trimestre — em 03/2026, R$ 989 mil por cliente. Nesse decil superior estão os bancos de
+atacado e de investimento, para os quais a proxy não se aplica; as financeiras de varejo,
+onde ela funciona, permanecem com o indicador. É a mesma regra do resto do painel: o que
+não é mensurável fica vazio em vez de virar número com o sinal trocado.
 """
 p2_4_hhi_regional = """
 HHI aplicado à distribuição da carteira entre as cinco regiões do país. | Concentração

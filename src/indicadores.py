@@ -206,6 +206,41 @@ def calcula() -> pd.DataFrame:
     df["p2_13_dep_imediato_pct"] = (_imediato
                                     / df["captacoes_real"].where(df["captacoes_real"] > 0))
 
+    # ---- GUARDA DE TICKET para P2 nº 3 (carteira PF em alto risco) -------------
+    # p2_3 usa a MODALIDADE como proxy de risco, e a proxy e calibrada para VAREJO:
+    # "emprestimo sem consignacao em folha" e caro e inadimplente quando o tomador e
+    # pessoa fisica de varejo. Fora do varejo a mesma rubrica abriga outra coisa.
+    #
+    # Caso que revelou o problema: a UBS (Brasil) marcava 100% de "carteira PF em alto
+    # risco" com 72 clientes, ticket medio de R$ 45,2 milhoes e inadimplencia de 0,00%.
+    # Aquilo e credito lombard -- colateralizado pela carteira de investimentos do
+    # cliente --, que o IF.data nao tem modalidade para registrar. O indicador invertia
+    # o sinal: marcava risco alto onde o risco e o mais baixo do recorte.
+    #
+    # Regra: acima do p90 do ticket medio do recorte padrao (carteira >= R$ 1 bi), no
+    # proprio trimestre, a proxy nao se aplica e o campo fica VAZIO -- em vez de entrar
+    # no score com o sinal trocado. E a mesma regra do resto do painel: o que nao e
+    # medivel nao vira numero.
+    #
+    # Trade-off assumido: um quantil mascara ~10% por construcao, inclusive instituicoes
+    # em que a proxy seria valida. Verificado em 03/2026: das 26 acima do p90, todas sao
+    # bancos de atacado ou de investimento (Scotiabank, Credit Agricole, MUFG, Mizuho,
+    # JP Morgan, BofA, Citibank, Deutsche, UBS...), e so 15 tinham p2_3 para perder.
+    # Um limiar absoluto seria mais estavel no tempo -- o p90 vai de R$ 27,3 milhoes em
+    # 2019 a R$ 989 mil em 2026, porque o recorte dobra de tamanho --, mas seria fixado
+    # por arbitrio nosso em vez de pela distribuicao observada.
+    Q_TICKET = 0.90
+    CORTE_RECORTE = 1e9
+    _lim = (df[df["carteira_credito_real"] >= CORTE_RECORTE]
+            .groupby("data_base")["ctx_ticket_medio_real"].quantile(Q_TICKET))
+    df["ctx_ticket_limiar_real"] = df["data_base"].map(_lim)
+    _atacado = (df["ctx_ticket_medio_real"] > df["ctx_ticket_limiar_real"]).fillna(False)
+    df["ctx_ticket_acima_p90"] = _atacado
+    _perdidos = int((_atacado & df["p2_3_pct_alto_risco"].notna()).sum())
+    df.loc[_atacado, "p2_3_pct_alto_risco"] = np.nan
+    print(f"  guarda de ticket em p2_3: {int(_atacado.sum())} linhas acima do p90 do "
+          f"recorte, {_perdidos} tinham o indicador e ficaram vazias")
+
     # ---------------- P3 ----------------
     # ATENCAO -- as duas metricas de qualidade NAO sao a mesma coisa e NAO se encadeiam.
     # Validacao cruzada (src/valida_cruzada.py) contra o SGS 21082:
