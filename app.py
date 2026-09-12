@@ -742,9 +742,63 @@ def faixa_cartoes(pergunta: str) -> None:
     tabela_sinalizadas(eixo, cols)
 
 
+def destaque(df: pd.DataFrame, eixo: str) -> dict:
+    """Cores, tamanhos e rótulo para separar as SINALIZADAS do resto num gráfico.
+
+    Os gráficos sempre responderam aos filtros — medido: com o corte em R$ 100 bi o
+    scatter de P1 cai de 257 para 9 pontos. O que faltava era ligá-los à SELEÇÃO: com
+    todos os pontos da mesma cor, nada na figura dizia quais são as instituições que a
+    página inteira está discutindo, e o gráfico parecia indiferente ao que se escolhia.
+    """
+    col = f"sem_{eixo}"
+    marc = (df[col] == "alto") if col in df.columns else pd.Series(False, index=df.index)
+    n = int(marc.sum())
+    return {
+        "marcada": marc,
+        "n": n,
+        "cor": [TEMA["risco_alto"] if m else TEMA["marca_clara"] for m in marc],
+        "borda": [TEMA["risco_alto"] if m else TEMA["eixo"] for m in marc],
+        "opacidade": [0.92 if m else 0.40 for m in marc],
+        "legenda": (f"<span style='color:{TEMA['risco_alto']}'>●</span> "
+                    f"<b>{n}</b> sinalizadas neste eixo · "
+                    f"<span style='color:{TEMA['marca_clara']}'>●</span> "
+                    f"demais {len(df) - n} do recorte"),
+    }
+
+
+def _preferir_sinalizadas(df: pd.DataFrame, eixo: str, col: str,
+                          n: int) -> pd.DataFrame:
+    """As `n` maiores em `col`, mas dando a vez às SINALIZADAS do eixo.
+
+    Um "top 12 por indicador" escolhido sem olhar a seleção põe na tela instituições
+    que a página não está discutindo, e deixa de fora as que estão na agenda.
+    """
+    col_sem = f"sem_{eixo}"
+    if col_sem not in df.columns:
+        return df.nlargest(n, col)
+    marc = df[df[col_sem] == "alto"].nlargest(n, col)
+    falta = n - len(marc)
+    if falta <= 0:
+        return marc
+    resto = df[~df.index.isin(marc.index)].nlargest(falta, col)
+    return pd.concat([marc, resto]).sort_values(col, ascending=False)
+
+
+def nota_destaque(d: dict) -> None:
+    st.markdown(f"<div class='rodape-fonte'>{d['legenda']}</div>",
+                unsafe_allow_html=True)
+
+
 @st.cache_data(show_spinner=False)
-def cresc_por_modalidade(_df: pd.DataFrame, dt: int) -> pd.DataFrame:
-    """Crescimento real anual por modalidade PF, por instituição."""
+def cresc_por_modalidade(_df: pd.DataFrame, dt: int, chave: str = "") -> pd.DataFrame:
+    """Crescimento real anual por modalidade PF, por instituição.
+
+    `chave` existe para o cache NAO mentir. O Streamlit ignora argumentos prefixados com
+    `_` ao montar a chave do cache, entao `_df` nao entra nela: sem `chave`, trocar o
+    filtro devolveria o resultado calculado com o filtro anterior. Aqui o risco era
+    baixo -- o crescimento por modalidade e por instituicao e nao depende do conjunto --,
+    mas um cache que ignora a entrada e uma armadilha esperando o proximo indicador.
+    """
     mods = {"pf_cartao_real": "Cartão", "pf_sem_consignacao_real": "Sem consignação",
             "pf_consignado_real": "Consignado", "pf_veiculos_real": "Veículos",
             "pf_habitacao_real": "Habitação", "pf_rural_real": "Rural"}
@@ -770,12 +824,20 @@ with aba1:
             st.info("Sem dados para o recorte.")
         else:
             med = d["p1_1_cresc_real_aa"].median()
+            dst = destaque(d, "crescimento")
             fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=d["p1_1_cresc_real_aa"] * 100, y=d["share_carteira"] * 100,
-                mode="markers", text=_hover(d), hoverinfo="text",
-                marker=dict(size=_tamanho(d), color=TEMA["marca"], opacity=0.55,
-                            line=dict(width=0.5, color="white"))))
+            for marcada, nome in ((False, "demais do recorte"), (True, "sinalizadas")):
+                sub = d[dst["marcada"].values == marcada]
+                if sub.empty:
+                    continue
+                fig.add_trace(go.Scatter(
+                    x=sub["p1_1_cresc_real_aa"] * 100, y=sub["share_carteira"] * 100,
+                    mode="markers", text=_hover(sub), hoverinfo="text", name=nome,
+                    marker=dict(size=_tamanho(sub),
+                                color=TEMA["risco_alto"] if marcada else TEMA["marca_clara"],
+                                opacity=0.9 if marcada else 0.45,
+                                line=dict(width=0.8 if marcada else 0.4,
+                                          color="white"))))
             fig.add_vline(x=med * 100, line=dict(color=TEMA["referencia"], width=1),
                           annotation_text="mediana", annotation_position="top")
             fig.add_vline(x=LIMIAR_BOOM * 100,
@@ -784,13 +846,19 @@ with aba1:
             fig.update_yaxes(type="log", title="Participação na carteira (%, log)")
             fig.update_xaxes(title="Crescimento real da carteira (% a.a.)")
             sem_grafico(fig)
+            nota_destaque(dst)
         bloco_lrc("p1_1")
 
     # ---- 2. carteira x tendencia HP
     with l1c2:
         st.markdown(f"**{LRC['p1_2']['titulo']}**")
-        cands = (univ.dropna(subset=["p1_2_credit_gap"])
-                     .nlargest(4, "p1_2_credit_gap")["cod_inst"].tolist())
+        # prioriza as SINALIZADAS: o gráfico serve à pergunta da página, e mostrar as
+        # quatro de maior gap sem olhar a seleção desconecta a figura do resto
+        _cg = univ.dropna(subset=["p1_2_credit_gap"])
+        _marc = _cg[_cg["sem_crescimento"] == "alto"] if "sem_crescimento" in _cg else _cg
+        cands = _marc.nlargest(4, "p1_2_credit_gap")["cod_inst"].tolist()
+        cands += [c for c in _cg.nlargest(4, "p1_2_credit_gap")["cod_inst"]
+                  if c not in cands][:max(0, 4 - len(cands))]
         if not cands:
             st.info("Série insuficiente para o filtro HP no recorte.")
         else:
@@ -815,7 +883,9 @@ with aba1:
     # ---- 3. heatmap crescimento por modalidade
     with l2c1:
         st.markdown(f"**{LRC['p1_3']['titulo']}**")
-        cm = cresc_por_modalidade(scored, dt_sel)
+        cm = cresc_por_modalidade(
+            scored, dt_sel,
+            chave=f"{sorted(tcb_sel)}|{sorted(seg_sel)}|{porte_min}")
         cm = cm[cm["cod_inst"].isin(univ["cod_inst"])]
         mods = [c for c in cm.columns if c not in ("data_base", "cod_inst", "instituicao")]
         cm = cm.dropna(subset=mods, how="all")
@@ -845,19 +915,21 @@ with aba1:
         if dc.empty:
             st.info("Sem dados de capital no recorte (relatório só existe a partir de 2023Q3).")
         else:
-            cores = [TEMA["risco_alto"] if v > 1.2 else
-                     TEMA["risco_medio"] if v > 1.0 else TEMA["marca"]
-                     for v in dc["p1_4_cresc_carteira_sobre_capital"]]
+            dst = destaque(dc, "crescimento")
             fig = go.Figure(go.Bar(
                 x=dc["p1_4_cresc_carteira_sobre_capital"],
                 y=[n[:28] for n in dc["instituicao"]],
-                orientation="h", marker_color=cores,
-                hovertemplate="%{y}<br>razão: %{x:.2f}<extra></extra>"))
+                orientation="h", marker_color=dst["cor"],
+                marker_line=dict(width=1, color=dst["borda"]),
+                customdata=["sinalizada" if m else "não sinalizada"
+                            for m in dst["marcada"]],
+                hovertemplate="%{y}<br>razão: %{x:.2f}<br>%{customdata}<extra></extra>"))
             fig.add_vline(x=1.0, line=dict(color=TEMA["referencia"], width=1.5, dash="dash"),
                           annotation_text="pari passu")
             fig.update_xaxes(title="Crescimento da carteira ÷ crescimento do capital")
             fig.update_yaxes(autorange="reversed")
             sem_grafico(fig)
+            nota_destaque(dst)
         bloco_lrc("p1_4")
 
     fonte("BCB/IF.data (Resumo e Informações de Capital) e BCB/SCR.data. "
@@ -989,7 +1061,8 @@ with aba2:
                 "pf_outros_real": "Outros"}
         mods = {k: v for k, v in mods.items() if k in univ.columns}
         dp = univ.dropna(subset=["pf_total_real"])
-        dp = dp[dp["pf_total_real"] > 0].nlargest(12, "p2_3_pct_alto_risco")
+        dp = dp[dp["pf_total_real"] > 0]
+        dp = _preferir_sinalizadas(dp, "concentracao", "p2_3_pct_alto_risco", 12)
         if dp.empty:
             st.info("Sem carteira PF relevante no recorte.")
         else:
@@ -1020,7 +1093,8 @@ with aba2:
                     "reg_nordeste_real": "Nordeste", "reg_norte_real": "Norte",
                     "reg_centro_oeste_real": "Centro-oeste"}
         cols_reg = {k: v for k, v in cols_reg.items() if k in univ.columns}
-        dr = univ.dropna(subset=["p2_4_hhi_regional"]).nlargest(12, "p2_4_hhi_regional")
+        dr = _preferir_sinalizadas(univ.dropna(subset=["p2_4_hhi_regional"]),
+                                   "concentracao", "p2_4_hhi_regional", 12)
         if dr.empty or not cols_reg:
             st.info("Sem dados regionais no recorte.")
         else:
@@ -1046,11 +1120,19 @@ with aba2:
         if dl.empty:
             st.info("Sem dados de funding no recorte.")
         else:
-            fig = go.Figure(go.Scatter(
-                x=dl["p1_1_cresc_real_aa"] * 100, y=dl["p2_6_loan_to_deposit"],
-                mode="markers", text=_hover(dl), hoverinfo="text",
-                marker=dict(size=_tamanho(dl), color=TEMA["marca"], opacity=0.55,
-                            line=dict(width=0.5, color="white"))))
+            dst = destaque(dl, "concentracao")
+            fig = go.Figure()
+            for marcada, nome in ((False, "demais do recorte"), (True, "sinalizadas")):
+                sub = dl[dst["marcada"].values == marcada]
+                if sub.empty:
+                    continue
+                fig.add_trace(go.Scatter(
+                    x=sub["p1_1_cresc_real_aa"] * 100, y=sub["p2_6_loan_to_deposit"],
+                    mode="markers", text=_hover(sub), hoverinfo="text", name=nome,
+                    marker=dict(size=_tamanho(sub),
+                                color=TEMA["risco_alto"] if marcada else TEMA["marca_clara"],
+                                opacity=0.9 if marcada else 0.45,
+                                line=dict(width=0.8 if marcada else 0.4, color="white"))))
             fig.add_hline(y=1.0, line=dict(color=TEMA["referencia"], width=1, dash="dash"),
                           annotation_text="carteira = captações")
             fig.add_vline(x=dl["p1_1_cresc_real_aa"].median() * 100,
@@ -1059,6 +1141,7 @@ with aba2:
             fig.update_xaxes(title="Crescimento real da carteira (% a.a.)")
             fig.update_yaxes(title="Carteira ÷ captações")
             sem_grafico(fig)
+            nota_destaque(dst)
         bloco_lrc("p2_4")
 
     fonte("BCB/IF.data (Resumo, carteira por modalidade e por região geográfica); "
@@ -1111,11 +1194,17 @@ with aba3:
                                         if pd.notna(r.p3_2_cobertura) else "sem dado")
                   for r in da.itertuples()],
             hoverinfo="text",
+            # a COR ja codifica cobertura, entao as sinalizadas sao marcadas pelo
+            # CONTORNO -- distingue a selecao sem disputar com a escala de cor
             marker=dict(size=_tamanho(da, 54), color=cob,
                         colorscale=[[0, TEMA["risco_alto"]], [0.45, TEMA["risco_medio"]],
                                     [1, TEMA["risco_baixo"]]],
                         cmin=0, cmax=3, opacity=0.78,
-                        line=dict(width=0.6, color="white"),
+                        line=dict(
+                            width=[2.4 if m else 0.6
+                                   for m in (da["sem_deterioracao"] == "alto")],
+                            color=[TEMA["texto"] if m else "white"
+                                   for m in (da["sem_deterioracao"] == "alto")]),
                         colorbar=dict(title="Cobertura<br>(provisão÷atraso)", thickness=12,
                                       tickvals=[0, 1, 2, 3],
                                       ticktext=["0%", "100%", "200%", "300%"]))))
@@ -1126,6 +1215,13 @@ with aba3:
         fig.update_xaxes(title="Crescimento real da carteira (% a.a.)")
         fig.update_yaxes(title="Inadimplência sobre a carteira (%)")
         sem_grafico(fig, altura=ALTURA_GRAFICO_GRANDE)
+        _n_marc = int((da["sem_deterioracao"] == "alto").sum())
+        st.markdown(
+            f"<div class='rodape-fonte'>A <b>cor</b> é a cobertura de provisões; o "
+            f"<b>contorno escuro</b> marca as <b>{_n_marc}</b> instituições sinalizadas "
+            f"em deterioração dentro deste recorte, e o tamanho é a carteira. Mudar os "
+            f"filtros muda quem aparece e quem é contornado.</div>",
+            unsafe_allow_html=True)
 
         prio = da[(da["p1_1_cresc_real_aa"] > med_x) & (da["p3_1_inadimplencia"] < med_y)]
         baixa_prov = prio[prio["p3_3_provisao_sobre_carteira"]
@@ -1152,14 +1248,23 @@ with aba3:
             fig.add_trace(go.Scatter(x=[0, lim], y=[0, lim], mode="lines",
                                      line=dict(color=TEMA["referencia"], width=1, dash="dash"),
                                      name="igualdade", hoverinfo="skip"))
-            fig.add_trace(go.Scatter(
-                x=dd["p3_1_inadimplencia"] * 100, y=dd["p3_4_inadimplencia_ajustada"] * 100,
-                mode="markers", text=_hover(dd), hoverinfo="text", showlegend=False,
-                marker=dict(size=_tamanho(dd, 34), color=TEMA["marca"], opacity=0.55,
-                            line=dict(width=0.5, color="white"))))
+            _d = destaque(dd, "deterioracao")
+            for _m, _n in ((False, "demais do recorte"), (True, "sinalizadas")):
+                _s = dd[_d["marcada"].values == _m]
+                if _s.empty:
+                    continue
+                fig.add_trace(go.Scatter(
+                    x=_s["p3_1_inadimplencia"] * 100,
+                    y=_s["p3_4_inadimplencia_ajustada"] * 100,
+                    mode="markers", text=_hover(_s), hoverinfo="text", name=_n,
+                    marker=dict(size=_tamanho(_s, 34),
+                                color=TEMA["risco_alto"] if _m else TEMA["marca_clara"],
+                                opacity=0.9 if _m else 0.45,
+                                line=dict(width=0.8 if _m else 0.4, color="white"))))
             fig.update_xaxes(title="Inadimplência corrente (%)", range=[0, lim])
             fig.update_yaxes(title="Ajustada ao crescimento (%)", range=[0, lim])
             sem_grafico(fig)
+            nota_destaque(_d)
         bloco_lrc("p3_2")
 
     # ---- 3. cobertura x ativos problematicos
