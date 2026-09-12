@@ -40,7 +40,7 @@ LIMIAR_BOOM = 0.15
 # atualizou" olhando a tela. VERSAO muda a cada alteracao que mexe nos numeros; a
 # impressao digital e do arquivo de dados. Se o que aparece no rodape da barra lateral
 # do Cloud nao bater com o local, o Cloud esta atrasado -- e nao ha o que depurar.
-VERSAO = "2026-09-11c · HHI e CR5 viram contexto; P2 pontua com 6 indicadores"
+VERSAO = "2026-09-12 · gráficos ligados à seleção e critérios de escolha declarados"
 
 st.set_page_config(page_title="Painel de Supervisão de Crédito — BCB",
                    page_icon="◧", layout="wide",
