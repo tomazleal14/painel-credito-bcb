@@ -106,8 +106,47 @@ def sem_html(nivel: str) -> str:
             f"{ICONE_SEMAFORO[nivel]}</span>")
 
 
+SUFIXOS_COMUNS = (" - PRUDENCIAL", " - PRUDENCIA", " – PRUDENCIAL")
+
+
+def nome_curto(s: str, n: int = 26) -> str:
+    """Nome da instituição sem o sufixo que TODAS carregam, antes de truncar.
+
+    No universo 1009 toda instituição termina em " - PRUDENCIAL". Truncar em 24
+    caracteres gastava 12 deles nesse sufixo: "UBS (BRASIL) - PRUDENCIA" perdia só o
+    "L" final e o que distinguia uma da outra ficava fora da tela. Tirando o sufixo
+    comum, os 24 caracteres passam a carregar informação.
+    """
+    t = str(s or "").strip()
+    for suf in SUFIXOS_COMUNS:
+        if t.upper().endswith(suf):
+            t = t[: -len(suf)].strip()
+            break
+    return t if len(t) <= n else t[: n - 1].rstrip() + "…"
+
+
 def sem_grafico(fig: go.Figure, titulo: str = "", altura: int | None = None):
-    fig.update_layout(**layout_base(titulo, altura))
+    """Aplica o layout comum e põe a legenda ACIMA do gráfico.
+
+    A legenda ficava embaixo, em y=-0,18, disputando a margem inferior com o título do
+    eixo — e o Plotly não empilha um sobre o outro: "Outros" caía em cima de "% da
+    carteira PF". Reservar mais margem não resolve, porque os dois continuam ancorados
+    no mesmo ponto.
+
+    Acima do gráfico não há concorrente: o título de cada figura é um `st.markdown`
+    fora do Plotly, e o `title` interno fica vazio. O espaço é reservado pelo número de
+    itens no pior caso (um por linha, que é o que acontece em coluna estreita), e a
+    altura cresce junto para a área de plotagem não encolher.
+    """
+    itens = sum(1 for t in fig.data
+                if getattr(t, "showlegend", None) is not False and getattr(t, "name", None))
+    extra = 20 * itens if itens > 1 else 0
+    lay = layout_base(titulo, (altura or ALTURA_GRAFICO) + extra)
+    if extra:
+        lay["margin"] = {**lay["margin"], "t": lay["margin"]["t"] + extra}
+        lay["legend"] = {**lay["legend"], "yanchor": "bottom", "y": 1.0, "x": 0,
+                         "xanchor": "left"}
+    fig.update_layout(**lay)
     st.plotly_chart(fig, width='stretch', config={"displayModeBar": False})
 
 
@@ -863,17 +902,32 @@ with aba1:
             st.info("Série insuficiente para o filtro HP no recorte.")
         else:
             hist = scored[scored["cod_inst"].isin(cands)].sort_values("data_base")
+            # O eixo x e CATEGORICO. Sem ordem declarada, o Plotly monta as categorias
+            # na ordem em que os traces as apresentam -- medido aqui: 202603, 202406,
+            # 202409, 202412, porque o primeiro traco so tem o ultimo trimestre. O
+            # resultado eram rotulos fora de ordem e linhas saltando no tempo.
+            eixo_x = [fmt_trimestre(x) for x in sorted(scored["data_base"].unique())]
             fig = go.Figure()
             cores = TEMA["sequencial"][2:]
             for i, cod in enumerate(cands):
-                h = hist[hist["cod_inst"] == cod]
-                nome = h["instituicao"].iloc[-1][:26]
+                h = hist[hist["cod_inst"] == cod].dropna(subset=["p1_2_credit_gap"])
+                if h.empty:
+                    continue
+                nome = nome_curto(h["instituicao"].iloc[-1], 30)
+                # um unico ponto nao desenha linha: vira marcador visivel
+                so_um = len(h) == 1
                 fig.add_trace(go.Scatter(
                     x=[fmt_trimestre(x) for x in h["data_base"]],
-                    y=h["p1_2_credit_gap"] * 100, mode="lines+markers", name=nome,
+                    y=h["p1_2_credit_gap"] * 100,
+                    mode="markers" if so_um else "lines+markers",
+                    name=f"{nome} (1 trim.)" if so_um else nome,
                     line=dict(width=2, color=cores[i % len(cores)]),
-                    marker=dict(size=4)))
+                    marker=dict(size=9 if so_um else 4,
+                                color=cores[i % len(cores)],
+                                symbol="diamond" if so_um else "circle")))
             fig.add_hline(y=0, line=dict(color=TEMA["referencia"], width=1))
+            fig.update_xaxes(categoryorder="array", categoryarray=eixo_x,
+                             tickangle=-45, nticks=10)
             fig.update_yaxes(title="Desvio da própria tendência (%)")
             sem_grafico(fig)
         bloco_lrc("p1_2")
@@ -897,7 +951,7 @@ with aba1:
             cm = cm.assign(_o=ordem).nlargest(14, "_o")
             z = cm[mods].astype(float).values * 100
             fig = go.Figure(go.Heatmap(
-                z=z, x=mods, y=[n[:26] for n in cm["instituicao"]],
+                z=z, x=mods, y=[nome_curto(n, 30) for n in cm["instituicao"]],
                 colorscale=[[0, TEMA["risco_baixo"]], [0.5, "#F2F2F2"],
                             [1, TEMA["risco_alto"]]],
                 zmid=0, zmin=-50, zmax=100,
@@ -918,7 +972,7 @@ with aba1:
             dst = destaque(dc, "crescimento")
             fig = go.Figure(go.Bar(
                 x=dc["p1_4_cresc_carteira_sobre_capital"],
-                y=[n[:28] for n in dc["instituicao"]],
+                y=[nome_curto(n, 30) for n in dc["instituicao"]],
                 orientation="h", marker_color=dst["cor"],
                 marker_line=dict(width=1, color=dst["borda"]),
                 customdata=["sinalizada" if m else "não sinalizada"
@@ -927,7 +981,7 @@ with aba1:
             fig.add_vline(x=1.0, line=dict(color=TEMA["referencia"], width=1.5, dash="dash"),
                           annotation_text="pari passu")
             fig.update_xaxes(title="Crescimento da carteira ÷ crescimento do capital")
-            fig.update_yaxes(autorange="reversed")
+            fig.update_yaxes(autorange="reversed", tickmode="linear", dtick=1)
             sem_grafico(fig)
             nota_destaque(dst)
         bloco_lrc("p1_4")
@@ -1073,14 +1127,14 @@ with aba2:
                       "Outros": TEMA["neutro"]}
             for col, nome in mods.items():
                 fig.add_trace(go.Bar(
-                    y=[n[:24] for n in dp["instituicao"]],
+                    y=[nome_curto(n, 30) for n in dp["instituicao"]],
                     x=(dp[col] / dp["pf_total_real"] * 100).fillna(0),
                     name=nome, orientation="h",
                     marker_color=paleta.get(nome, TEMA["neutro"]),
                     hovertemplate="%{y}<br>" + nome + ": %{x:.1f}%<extra></extra>"))
             fig.update_layout(barmode="stack")
             fig.update_xaxes(title="% da carteira PF")
-            fig.update_yaxes(autorange="reversed")
+            fig.update_yaxes(autorange="reversed", tickmode="linear", dtick=1)
             sem_grafico(fig)
         bloco_lrc("p2_2")
 
@@ -1102,13 +1156,13 @@ with aba2:
             fig = go.Figure()
             for i, (col, nome) in enumerate(cols_reg.items()):
                 fig.add_trace(go.Bar(
-                    y=[n[:24] for n in dr["instituicao"]],
+                    y=[nome_curto(n, 30) for n in dr["instituicao"]],
                     x=(dr[col] / tot * 100).fillna(0), name=nome, orientation="h",
                     marker_color=TEMA["sequencial"][(i + 1) % len(TEMA["sequencial"])],
                     hovertemplate="%{y}<br>" + nome + ": %{x:.1f}%<extra></extra>"))
             fig.update_layout(barmode="stack")
             fig.update_xaxes(title="% da carteira por região")
-            fig.update_yaxes(autorange="reversed")
+            fig.update_yaxes(autorange="reversed", tickmode="linear", dtick=1)
             sem_grafico(fig)
         bloco_lrc("p2_3")
 
@@ -1304,13 +1358,13 @@ with aba3:
                      TEMA["risco_medio"] if v < 5 else TEMA["marca"]
                      for v in dk["p3_6_folga_capital_pp"]]
             fig = go.Figure(go.Bar(
-                x=dk["p3_6_folga_capital_pp"], y=[n[:22] for n in dk["instituicao"]],
+                x=dk["p3_6_folga_capital_pp"], y=[nome_curto(n, 30) for n in dk["instituicao"]],
                 orientation="h", marker_color=cores,
                 hovertemplate="%{y}<br>folga: %{x:.2f} p.p.<extra></extra>"))
             fig.add_vline(x=0, line=dict(color=TEMA["risco_alto"], width=1.5),
                           annotation_text=f"mínimo {MIN_BASILEIA}%")
             fig.update_xaxes(title="Folga sobre o mínimo (p.p.)")
-            fig.update_yaxes(autorange="reversed")
+            fig.update_yaxes(autorange="reversed", tickmode="linear", dtick=1)
             sem_grafico(fig)
         bloco_lrc("p3_4")
 
