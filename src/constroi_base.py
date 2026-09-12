@@ -103,6 +103,20 @@ CAMPOS = {
         "quantidade de clientes com operacoes ativas": "qtd_clientes",
         "quantidade de operacoes ativas": "qtd_operacoes",
     },
+    # Abertura do FUNDING. A conta "Captacoes" do Resumo e um agregado amplo --
+    # [4.1] depositos + [4.2] compromissadas + [4.3] aceites e emissao de titulos
+    # (LF, LCI, LCA) + [4.6] emprestimos e repasses --, entao a razao carteira /
+    # captacoes NAO distingue funding estavel de funding volatil: CDB e Letra
+    # Financeira ja estao no denominador, e LF tem prazo minimo de dois anos sem
+    # resgate antecipado, sendo mais estavel que deposito a vista.
+    # Estas colunas permitem medir a COMPOSICAO do funding, que e o que a pergunta
+    # de P2 promete quando fala em "funding de risco".
+    "Passivo": {
+        "depositos a vista (a1)": "dep_vista",
+        "depositos de poupanca (a2)": "dep_poupanca",
+        "depositos a prazo (a4)": "dep_prazo",
+        "letras financeiras (c3)": "letras_financeiras",
+    },
 }
 
 

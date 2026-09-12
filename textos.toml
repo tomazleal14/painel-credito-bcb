@@ -41,7 +41,7 @@ assinatura = "Trabalho Intermediário · FGV · Prof. Genaro Lins · **Grupo**: 
 
 [abas]
 p1 = "P1 — Quais instituições crescem acima do sistema e da própria tendência?"
-p2 = "P2 — Quais concentram a carteira em modalidades, regiões ou funding de risco?"
+p2 = "P2 — Quais concentram a carteira em modalidades, regiões, porte do tomador ou estrutura de funding?"
 p3 = "P3 — Quem mostra deterioração incompatível com o ritmo de crescimento?"
 
 [agenda]
@@ -79,7 +79,7 @@ descricao = "A variável-mestra: quem expande a carteira acima do sistema e da p
 
 [eixos.concentracao]
 rotulo = "Concentração"
-descricao = "Onde o risco se concentra: modalidade, região, porte do tomador e funding."
+descricao = "Onde o risco se concentra: modalidade, região, porte do tomador, peso do crédito no balanço e estrutura de funding."
 
 [eixos.deterioracao]
 rotulo = "Deterioração"
@@ -98,7 +98,7 @@ toda comparação de 12 meses que atravessa essa data ficaria contaminada).
 
 [series.concentracao]
 curta = """
-**Série completa**, mas com um degrau. Os quatro indicadores comparam valores do mesmo
+**Série completa**, mas com um degrau. Os seis indicadores comparam valores do mesmo
 trimestre, então não dependem de histórico nem são afetados pela quebra de 2025 — o
 patamar entre 2022Q3 e 2024Q4 tem outra causa, explicada abaixo.
 """
@@ -429,6 +429,22 @@ renovação frequente: concentração alta aqui significa exposição a **rolage
 rápido quando o crédito aperta. | Em % da carteira PJ. Instituições sem carteira PJ ficam
 com o campo vazio.
 """
+p2_13_dep_imediato_pct = """
+Depósitos à vista mais poupança, sobre as captações totais. | Mede a **estrutura** do
+funding, e não o nível: que fatia do passivo captado pode ser sacada a qualquer momento.
+É a dimensão que a razão carteira ÷ captações não enxerga, porque naquele denominador CDB
+e Letra Financeira entram junto com depósito à vista. | Em % das captações. Zero é comum e
+não é falha: financeiras e emissores de cartão não captam à vista — 33 das 258 do recorte
+estão nessa situação. Em 03/2026 a mediana é 13,5% e a Caixa lidera entre os grandes, com
+21,6%, pela base de poupança.
+
+**É um piso, não o total.** O relatório Passivo não abre prazo de resgate, então CDB com
+liquidez diária — igualmente resgatável de imediato — fica de fora da conta. E a leitura
+tem contra-argumento legítimo: depósito de varejo pulverizado e coberto pelo FGC costuma
+ser mais *pegajoso* em estresse que captação institucional. O indicador entra como maior =
+pior pela ótica de risco de saque, e essa escolha é do grupo, não da norma.
+"""
+
 p2_12_hhi_porte_pj = """
 **HHI** dos quatro portes do tomador PJ (micro, pequena, média, grande): soma dos
 quadrados das participações, de 0 a 10.000. | Alternativa ao "% em grande porte": em vez
@@ -510,10 +526,17 @@ da carteira PJ. **Não é** um Herfindahl sobre devedores: um banco com muitos c
 grandes aparece igual a um com poucos. Instituições sem carteira PJ ficam sem valor.
 """
 p2_6_loan_to_deposit = """
-Carteira de crédito dividida pelas captações (**loan-to-deposit**). | Funding curto frente
-a crédito longo é um dos cinco sinais de boom ruim apontados pelo FMI. | 1,0 = carteira
-igual às captações. Acima disso, parte do crédito é financiada por fontes que não os
-depósitos, o que costuma ser mais volátil.
+Carteira de crédito dividida pelas captações totais. | Mede **quanta carteira a
+instituição sustenta por unidade de captação própria** — não mede prazo nem volatilidade
+do funding. | 1,0× = carteira igual às captações. Acima disso, a carteira excede todo o
+funding captado e a diferença vem de outras fontes: patrimônio líquido, dívida
+subordinada, cessões ou aporte da controladora.
+
+**Cuidado com o nome.** *Loan-to-deposit* é impróprio aqui: a conta "Captações" do IF.data
+agrega depósitos, operações compromissadas, letras (LF, LCI, LCA) e repasses — CDB e Letra
+Financeira **já estão no denominador**. Razão alta não significa funding curto: a LF tem
+prazo mínimo de dois anos e não admite resgate antecipado, sendo mais estável que depósito
+à vista. Para estrutura do funding, ver *Funding de resgate imediato*.
 """
 
 p3_1_inadimplencia = """
@@ -664,8 +687,11 @@ A linha em 1,0 marca a carteira igual às captações; a mediana dos pares do me
 instituição é a referência de comparação.
 """
 consequencia = """
-Crescer rápido com funding curto é um dos cinco sinais de boom ruim do FMI. O canto superior \
-direito concentra as duas condições ao mesmo tempo.
+O canto superior direito reúne as duas condições: carteira que excede as captações e cresce \
+rápido. É sinal de que a expansão depende de fontes fora do funding captado — capital \
+próprio, dívida subordinada, cessão ou aporte da controladora —, que podem não acompanhar \
+o ritmo. <i>Não</i> é, por si, indício de funding curto: o prazo do passivo não se lê nesta \
+razão, e sim no indicador de funding de resgate imediato.
 """
 
 [p3_1]

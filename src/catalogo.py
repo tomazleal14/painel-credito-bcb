@@ -170,6 +170,13 @@ _P2 = [
               "IF.data · Carteira PJ por porte (micro, pequena, média, grande)",
               "Σ share_porte² × 10.000, dentro da carteira PJ",
               nota="alternativa ao % em grande porte: mede dispersão entre portes"),
+    Indicador("p2_13_dep_imediato_pct", "Funding de resgate imediato", "concentracao",
+              "%", 100, 1, "maior_pior",
+              "IF.data · Passivo · Depósitos à Vista e de Poupança ÷ Captações",
+              "(depósito à vista + poupança) ÷ captações totais",
+              nota="mede a COMPOSIÇÃO do funding, que a razão carteira ÷ captações não "
+                   "distingue; é piso, não total — CDB com liquidez diária também é "
+                   "resgatável de imediato e o relatório não abre prazo"),
 ]
 
 # --------------------------------------------------------------------------- P3

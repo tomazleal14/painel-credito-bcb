@@ -1,14 +1,14 @@
-# Nota de verificação — P1 · Aceleração do crescimento
+# Nota de verificação — P2 · Funding de resgate imediato
 
-`p1_11_aceleracao_pp`
+`p2_13_dep_imediato_pct`
 
 | campo | conteúdo |
 |---|---|
-| Pergunta | **P1** |
-| Fonte primária | derivado de p1_1_cresc_real_aa |
+| Pergunta | **P2** |
+| Fonte primária | IF.data · Passivo · Depósitos à Vista e de Poupança ÷ Captações |
 | Campos de origem |  |
-| Fórmula | `cresc.(t) − cresc.(t−4): variação do próprio ritmo, em p.p.` |
-| Referência de comparação | crescimento alto e estável difere de crescimento que está disparando |
+| Fórmula | `(depósito à vista + poupança) ÷ captações totais` |
+| Referência de comparação | mede a COMPOSIÇÃO do funding, que a razão carteira ÷ captações não distingue; é piso, não total — CDB com liquidez diária também é resgatável de imediato e o relatório não abre prazo |
 | Unidade | razão, % ou p.p. conforme a fórmula acima |
 | Deflator | **Não altera o resultado.** É uma razão entre valores da mesma data-base: o fator do IPCA aparece no numerador e no denominador e se cancela. O cálculo usa as colunas `_real` por consistência, mas o número seria idêntico em termos nominais. |
 | Recorte | IF.data trimestral por instituição; universo fixado em `00_fontes_confirmadas.md` §2 |
@@ -24,18 +24,18 @@
 
 | regime contábil | preenchimento |
 |---|---|
-| AA-H (Res. 2.682) | 52.7% |
-| Res. 4.966 (ECL) | 0.0% |
+| AA-H (Res. 2.682) | 71.7% |
+| Res. 4.966 (ECL) | 72.8% |
 
-Observações válidas no último trimestre (202603): **0**.
+Observações válidas no último trimestre (202603): **1.004**.
 
 ## Estatísticas na janela
 
 | medida | valor |
 |---|---|
-| mediana | -0.0253 |
-| p10 | -0.4113 |
-| p90 | 0.2986 |
+| mediana | 0.1678 |
+| p10 | 0.0000 |
+| p90 | 0.3647 |
 
 ## Como reproduzir
 

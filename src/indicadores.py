@@ -192,6 +192,20 @@ def calcula() -> pd.DataFrame:
     df["p2_6_loan_to_deposit"] = (df["carteira_credito_real"]
                                   / df["captacoes_real"].where(df["captacoes_real"] > 0))
 
+    # COMPOSICAO do funding, e nao o nivel dele.
+    # p2_6 (carteira / captacoes) NAO distingue funding estavel de volatil: a conta
+    # "Captacoes" do Resumo agrega [4.1] depositos + [4.2] compromissadas + [4.3]
+    # aceites e emissao de titulos + [4.6] emprestimos e repasses, ou seja, CDB e Letra
+    # Financeira ja estao no denominador. E LF tem prazo minimo de dois anos SEM resgate
+    # antecipado -- e mais estavel que deposito a vista, nao menos.
+    # Este indicador mede a fatia do funding que pode ser sacada a qualquer momento:
+    # deposito a vista e poupanca. E um PISO, nao o total: CDB com liquidez diaria
+    # tambem e resgatavel de imediato, e o relatorio Passivo nao abre prazo de resgate.
+    _imediato = df[[c for c in ("dep_vista_real", "dep_poupanca_real")
+                    if c in df.columns]].sum(axis=1, min_count=1)
+    df["p2_13_dep_imediato_pct"] = (_imediato
+                                    / df["captacoes_real"].where(df["captacoes_real"] > 0))
+
     # ---------------- P3 ----------------
     # ATENCAO -- as duas metricas de qualidade NAO sao a mesma coisa e NAO se encadeiam.
     # Validacao cruzada (src/valida_cruzada.py) contra o SGS 21082:
