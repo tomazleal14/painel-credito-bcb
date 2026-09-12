@@ -239,7 +239,8 @@ def fora_da_escala(valores, lo: float, hi: float) -> tuple[int, int]:
 
 
 def regua(valor: float, minimo: float, maximo: float, faixas,
-          largura: int = 300, altura: int = 16) -> str:
+          largura: int = 300, altura: int = 16,
+          referencia: float | None = None) -> str:
     """Regua de referencia com a marca de onde o valor esta.
 
     Serve para indicador de escopo SISTEMA -- um numero por trimestre, igual para todas
@@ -261,7 +262,17 @@ def regua(valor: float, minimo: float, maximo: float, faixas,
         partes.append(f'<rect x="{x0:.2f}" y="4" width="{x1 - x0:.2f}" height="8" '
                       f'fill="{cor}" opacity="0.55"/>')
         ini = fim
-    x = (min(max(valor, minimo), maximo) - minimo) / (maximo - minimo) * largura
+    def _x(v: float) -> float:
+        return (min(max(v, minimo), maximo) - minimo) / (maximo - minimo) * largura
+
+    # marca de referencia (ex.: o valor do sistema inteiro), fina e tracejada
+    if referencia is not None and referencia == referencia:
+        xr = _x(float(referencia))
+        partes.append(f'<line x1="{xr:.2f}" y1="1" x2="{xr:.2f}" y2="{altura - 1}" '
+                      f'stroke="{TEMA["texto_3"]}" stroke-width="1.2" '
+                      f'stroke-dasharray="2,2"/>')
+
+    x = _x(float(valor))
     partes.append(f'<line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{altura}" '
                   f'stroke="#FFFFFF" stroke-width="4"/>')
     partes.append(f'<line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{altura}" '

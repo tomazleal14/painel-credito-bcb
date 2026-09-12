@@ -294,6 +294,26 @@ def composicao_carteira(df_atual: pd.DataFrame, eixo: str,
     return fatias
 
 
+def hhi_cr5(df: pd.DataFrame) -> tuple[float, float]:
+    """HHI (0-10.000) e CR5 (%) calculados SOBRE O CONJUNTO RECEBIDO.
+
+    As colunas `p2_1_hhi_sistema` e `p2_2_cr5_sistema_pct` do parquet sao do universo
+    inteiro do IF.data e ficam gravadas no build -- filtro nenhum as alcanca. Isso e
+    correto para o que elas dizem ser (o sistema), e errado para o que o painel parecia
+    prometer: com o recorte filtrado em bancos com carteira >= R$ 10 bi, a tela seguia
+    exibindo HHI 951 e CR5 64,8% quando o recorte tinha 1.169 e 71,9%.
+
+    Concentracao e uma propriedade DO CONJUNTO, entao tem de ser recalculada sempre que
+    o conjunto muda. O valor do sistema continua existindo, ao lado, como ancora.
+    """
+    c = df["carteira_credito_real"].replace([np.inf, -np.inf], np.nan).dropna()
+    c = c[c > 0]
+    if c.empty:
+        return float("nan"), float("nan")
+    s = c / c.sum()
+    return float((s ** 2).sum() * 10_000), float(s.nlargest(5).sum() * 100)
+
+
 def exposta_no_trimestre(df_atual: pd.DataFrame, eixo: str) -> float:
     """Carteira exposta a risco alto NO TRIMESTRE SELECIONADO, em % do recorte.
 

@@ -225,18 +225,23 @@ with aba0:
                 f"R$ {cartoes.num(univ['carteira_credito_real'].sum()/1e12, 2)} tri",
                 help=f"Soma da carteira de crédito das instituições do recorte, em reais "
                      f"de {fmt_trimestre(BASE_DEFL)} (deflacionada pelo IPCA).")
-    hhi = univ["p2_1_hhi_sistema"].dropna()
-    c[2].metric("HHI do sistema",
-                cartoes.num(hhi.iloc[0], 0) if len(hhi) else "—",
-                help="Índice Herfindahl-Hirschman: soma dos quadrados das participações "
-                     "de mercado, de 0 a 10.000. Abaixo de 1.500 = desconcentrado; "
-                     "1.500 a 2.500 = moderadamente concentrado; acima = concentrado.")
-    cr5 = univ["p2_2_cr5_sistema_pct"].dropna()
-    c[3].metric("CR5",
-                f"{cartoes.num(cr5.iloc[0], 1)}%" if len(cr5) else "—",
-                help="Concentration ratio dos 5 maiores: fatia da carteira detida pelas "
-                     "cinco maiores instituições. Complementa o HHI, que pode ser baixo "
-                     "por haver milhares de cooperativas pequenas.")
+    # recalculados sobre o recorte, e nao lidos da coluna gravada (ver cartoes.hhi_cr5)
+    _hhi_r, _cr5_r = cartoes.hhi_cr5(univ)
+    _hhi_s, _cr5_s = cartoes.hhi_cr5(ind[ind["data_base"] == dt_sel])
+    c[2].metric("HHI do recorte",
+                cartoes.num(_hhi_r, 0) if pd.notna(_hhi_r) else "—",
+                help=f"Índice Herfindahl-Hirschman: soma dos quadrados das participações "
+                     f"de mercado das {len(univ)} instituições do recorte, de 0 a 10.000. "
+                     f"Abaixo de 1.500 = desconcentrado; 1.500 a 2.500 = moderadamente "
+                     f"concentrado; acima = concentrado. Responde aos filtros — no "
+                     f"universo inteiro do IF.data é {cartoes.num(_hhi_s, 0)}.")
+    c[3].metric("CR5 do recorte",
+                f"{cartoes.num(_cr5_r, 1)}%" if pd.notna(_cr5_r) else "—",
+                help=f"Concentration ratio dos 5 maiores: fatia da carteira detida pelas "
+                     f"cinco maiores instituições do recorte. Complementa o HHI, que pode "
+                     f"ser baixo por haver milhares de instituições pequenas. Responde "
+                     f"aos filtros — no universo inteiro é "
+                     f"{cartoes.num(_cr5_s, 1)}%.")
     cresc_med = univ["p1_1_cresc_real_aa"].median()
     c[4].metric("Crescimento real mediano",
                 f"{cartoes.num(cresc_med*100, 1)}%" if pd.notna(cresc_med) else "—",
@@ -872,58 +877,74 @@ def contexto_sistema() -> None:
     Aqui eles ficam onde fazem sentido: uma faixa de contexto, lida contra os limiares
     de referência, antes dos seis indicadores que de fato distinguem instituições.
     """
-    hhi_v = univ["p2_1_hhi_sistema"].dropna()
-    cr5_v = univ["p2_2_cr5_sistema_pct"].dropna()
-    if hhi_v.empty and cr5_v.empty:
+    # RECALCULADOS sobre o recorte. Concentracao e propriedade DO CONJUNTO: com o
+    # recorte em carteira >= R$ 10 bi o HHI vai de 951 para 1.169 e o CR5 de 64,8% para
+    # 71,9%. Ler a coluna gravada (que e do universo inteiro) fazia a tela nao responder
+    # a filtro nenhum.
+    hhi_r, cr5_r = cartoes.hhi_cr5(univ)
+    sistema = ind[ind["data_base"] == dt_sel]
+    hhi_s, cr5_s = cartoes.hhi_cr5(sistema)
+    if pd.isna(hhi_r) and pd.isna(cr5_r):
         return
+    filtrado = len(univ) < len(sistema)
+
+    def _ref(v_r, v_s, casas, unid=""):
+        if not filtrado or pd.isna(v_s):
+            return ""
+        return (f" No universo inteiro do IF.data ({len(sistema)} instituições): "
+                f"<b>{cartoes.num(v_s, casas)}{unid}</b> — é a marca tracejada na régua.")
 
     c1, c2 = st.columns(2, gap="medium")
-    if not hhi_v.empty:
-        v = float(hhi_v.iloc[0])
-        nivel = ("baixo" if v < 1500 else "medio" if v < 2500 else "alto")
+    if pd.notna(hhi_r):
+        nivel = ("baixo" if hhi_r < 1500 else "medio" if hhi_r < 2500 else "alto")
         with c1:
             st.markdown(
                 f"<div class='cartao'>"
-                f"<div class='cartao-topo'><span class='cartao-rotulo'>HHI do sistema"
+                f"<div class='cartao-topo'><span class='cartao-rotulo'>HHI do recorte"
                 f"</span><span class='selo' style='background:{SEMAFORO_SOFT[nivel]};"
                 f"color:{SEMAFORO[nivel]}'>"
                 f"{'desconcentrado' if nivel == 'baixo' else 'moderado' if nivel == 'medio' else 'concentrado'}"
                 f"</span></div>"
-                f"<div class='cartao-valor'>{cartoes.num(v, 0)}</div>"
+                f"<div class='cartao-valor'>{cartoes.num(hhi_r, 0)}</div>"
                 f"<div class='cartao-releitura'>soma dos quadrados das participações de "
-                f"mercado, de 0 a 10.000</div>"
-                f"<div class='cartao-dist'>{regua(v, 0, 5000, [(1500, TEMA['risco_baixo']), (2500, TEMA['risco_medio']), (5000, TEMA['risco_alto'])])}</div>"
+                f"mercado das <b>{len(univ)}</b> instituições do recorte, de 0 a 10.000"
+                f"</div>"
+                f"<div class='cartao-dist'>{regua(hhi_r, 0, 5000, [(1500, TEMA['risco_baixo']), (2500, TEMA['risco_medio']), (5000, TEMA['risco_alto'])], referencia=hhi_s)}</div>"
                 f"<div class='dist-eixo'><span>0</span><span>1.500</span>"
                 f"<span>2.500</span><span>5.000</span></div>"
                 f"<div class='cartao-escala'>abaixo de 1.500 desconcentrado · 1.500 a "
                 f"2.500 moderadamente concentrado · acima de 2.500 concentrado. A régua "
-                f"vai até 5.000; o máximo teórico é 10.000 (monopólio).</div></div>",
+                f"vai até 5.000; o máximo teórico é 10.000 (monopólio)."
+                f"{_ref(hhi_r, hhi_s, 0)}</div></div>",
                 unsafe_allow_html=True)
-    if not cr5_v.empty:
-        v = float(cr5_v.iloc[0])
+    if pd.notna(cr5_r):
         with c2:
             st.markdown(
                 f"<div class='cartao'>"
-                f"<div class='cartao-topo'><span class='cartao-rotulo'>CR5</span></div>"
-                f"<div class='cartao-valor'>{cartoes.num(v, 1)}<span class='unidade'>%"
+                f"<div class='cartao-topo'><span class='cartao-rotulo'>CR5 do recorte"
                 f"</span></div>"
-                f"<div class='cartao-releitura'>fatia da carteira nas cinco maiores "
-                f"instituições</div>"
-                f"<div class='cartao-dist'>{regua(v, 0, 100, [(100, TEMA['marca_clara'])])}</div>"
+                f"<div class='cartao-valor'>{cartoes.num(cr5_r, 1)}<span class='unidade'>%"
+                f"</span></div>"
+                f"<div class='cartao-releitura'>fatia da carteira nas cinco maiores das "
+                f"<b>{len(univ)}</b> instituições do recorte</div>"
+                f"<div class='cartao-dist'>{regua(cr5_r, 0, 100, [(100, TEMA['marca_clara'])], referencia=cr5_s)}</div>"
                 f"<div class='dist-eixo'><span>0%</span><span>50%</span>"
                 f"<span>100%</span></div>"
                 f"<div class='cartao-escala'>Complementa o HHI, que pode ser baixo só "
-                f"por haver milhares de cooperativas pequenas. Não há limiar oficial: "
-                f"é leitura de nível e de tendência.</div></div>",
+                f"por haver milhares de instituições pequenas. Não há limiar oficial: "
+                f"é leitura de nível e de tendência.{_ref(cr5_r, cr5_s, 1, '%')}</div>"
+                f"</div>",
                 unsafe_allow_html=True)
 
     st.markdown(
-        f"<div class='rodape-fonte'>Estes <b>dois números descrevem o mercado, não a "
-        f"instituição</b> — têm um único valor por trimestre, idêntico para as "
-        f"{len(univ)} do recorte. Por isso não geram percentil e <b>não entram no "
-        f"score</b>: ranquear instituições por um número igual para todas não diria "
-        f"nada. Eles definem o contexto em que os seis indicadores abaixo são lidos."
-        f"</div><div style='height:10px'></div>", unsafe_allow_html=True)
+        f"<div class='rodape-fonte'>Estes <b>dois números descrevem o conjunto, não a "
+        f"instituição</b>: uma vez fixado o recorte, valem igualmente para todas as "
+        f"{len(univ)}. Por isso não geram percentil e <b>não entram no score</b> — "
+        f"ranquear instituições por um número igual para todas não diria nada. Eles "
+        f"definem o contexto em que os seis indicadores abaixo são lidos, e "
+        f"<b>respondem aos filtros</b>: restringir o recorte a instituições maiores "
+        f"eleva os dois, porque concentração é propriedade do conjunto que se escolhe "
+        f"olhar.</div><div style='height:10px'></div>", unsafe_allow_html=True)
 
 
 with aba2:
@@ -935,10 +956,13 @@ with aba2:
     # ---- 1. HHI e CR5 do sistema
     with m1c1:
         st.markdown(f"**{LRC['p2_1']['titulo']}**")
-        sist = (scored.groupby("data_base")
-                      .agg(hhi=("p2_1_hhi_sistema", "first"),
-                           cr5=("p2_2_cr5_sistema_pct", "first"))
-                      .reset_index())
+        # recalculado por trimestre sobre o RECORTE (hist ja tem os filtros e o corte
+        # de carteira aplicados), e nao lido da coluna gravada, que e do universo
+        # inteiro e nao responderia a filtro nenhum
+        _h = scored[scored["carteira_credito_real"] >= porte_min]
+        sist = pd.DataFrame(
+            [{"data_base": d, **dict(zip(("hhi", "cr5"), cartoes.hhi_cr5(g)))}
+             for d, g in _h.groupby("data_base")]).sort_values("data_base")
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=[fmt_trimestre(x) for x in sist["data_base"]],
                                  y=sist["hhi"], name="HHI", mode="lines+markers",
