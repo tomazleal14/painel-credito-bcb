@@ -773,7 +773,7 @@ do trimestre ao lado.
 | eixo | trimestres com dado | de | janela | indicadores no score |
 |---|---|---|---|---|
 | P1 · Crescimento | 21 | 29 | 03/2020 a 03/2026, sem 2025 | 5 ou 6 |
-| P2 · Concentração | 29 | 29 | 03/2019 a 03/2026 | 4 sempre |
+| P2 · Concentração | 29 | 29 | 03/2019 a 03/2026 | 6 sempre |
 | P3 · Deterioração | 5 | 29 | 03/2025 a 03/2026 | 5 ou 6 |
 
 Três consequências práticas. (i) **Nenhuma comparação entre eixos ao longo do tempo** é
@@ -803,10 +803,12 @@ refletir carteira legitimamente melhor. A conclusão é uma agenda de verificaç
 
 **4b. O score não mede relevância sistêmica.** Ele mede **atipicidade dentro do grupo de pares**:
 um score alto significa "muito fora do padrão do seu próprio tipo de instituição", não "importante
-para o sistema". As duas coisas não coincidem — com uma lista única por score, os cinco maiores
-bancos do país apareciam entre a 548ª e a 1046ª posição, e a agenda cobria 1% da carteira. Daí as
-duas listas. Um score 0,75 num grupo de 154 cooperativas e um 0,75 num grupo de 66 bancos são o
-quartil superior de populações diferentes e **não são diretamente comparáveis** entre si.
+para o sistema". As duas coisas não coincidem: numa lista única por score, no recorte de 258
+instituições, os cinco maiores bancos do país ocupam da **80ª à 238ª posição** — a Caixa em 80º, o
+Itaú em 230º, o Santander em 238º —, e a agenda resultante cobre 1,1% da carteira. Daí as duas
+listas. Um score 0,75 num grupo de 154 cooperativas e um 0,75 num grupo de 66 bancos são o quartil
+superior de populações diferentes e **não são diretamente comparáveis** entre si; no grupo b4, com
+apenas 3 instituições no recorte, o percentil quase não carrega informação.
 
 **5. Não enxerga o que não está no balanço.** Cessões de crédito, coobrigação, exposições fora
 do balanço, risco de mercado e liquidez ficam fora do recorte destes relatórios.
