@@ -144,7 +144,11 @@ def faixa_escala(valores, lo_q: float = 0.05, hi_q: float = 0.95) -> tuple[float
     if hi <= lo:
         lo, hi = float(v.min()), float(v.max())
     if hi <= lo:
-        hi = lo + (abs(lo) or 1.0)
+        # Serie constante: NAO se inventa um teto. Fabricar `lo + |lo|` fazia o eixo do
+        # CR5 exibir "64,8% a 129,6%" -- um CR5 acima de 100% e impossivel por
+        # definicao, e um numero na tela que nao veio de lugar nenhum. Quem recebe uma
+        # faixa degenerada e quem decide o que mostrar (ver `distribuicao`).
+        return lo, lo
     return lo, hi
 
 
@@ -168,10 +172,12 @@ def distribuicao(valores, marcados=None, largura: int = 330, altura: int = 52) -
     v = pd.Series(valores).replace([np.inf, -np.inf], np.nan).dropna()
     m = (pd.Series(marcados).replace([np.inf, -np.inf], np.nan).dropna()
          if marcados is not None else pd.Series(dtype=float))
-    if len(v) < 2:
-        return f'<svg width="{largura}" height="{altura}"></svg>'
+    if len(v) < 2 or v.nunique() < 2:
+        return ""                      # sem dispersao nao ha distribuicao a desenhar
 
     lo, hi = faixa_escala(v)
+    if hi <= lo:
+        return ""
     pad = 4
     util = largura - 2 * pad
 
@@ -230,6 +236,39 @@ def fora_da_escala(valores, lo: float, hi: float) -> tuple[int, int]:
     """Quantos ficam abaixo e acima da escala desenhada."""
     v = pd.Series(valores).replace([np.inf, -np.inf], np.nan).dropna()
     return int((v < lo).sum()), int((v > hi).sum())
+
+
+def regua(valor: float, minimo: float, maximo: float, faixas,
+          largura: int = 300, altura: int = 16) -> str:
+    """Regua de referencia com a marca de onde o valor esta.
+
+    Serve para indicador de escopo SISTEMA -- um numero por trimestre, igual para todas
+    as instituicoes. Ele nao tem distribuicao, nao gera percentil e nao seleciona
+    ninguem; o que da sentido a ele e a FAIXA DE REFERENCIA contra a qual e lido, e nao
+    a posicao relativa entre instituicoes.
+
+    `faixas` = [(ate, cor), ...] em ordem crescente, cobrindo de `minimo` a `maximo`.
+    """
+    if maximo <= minimo:
+        return ""
+    partes, ini = [], minimo
+    for ate, cor in faixas:
+        fim = min(float(ate), maximo)
+        if fim <= ini:
+            continue
+        x0 = (ini - minimo) / (maximo - minimo) * largura
+        x1 = (fim - minimo) / (maximo - minimo) * largura
+        partes.append(f'<rect x="{x0:.2f}" y="4" width="{x1 - x0:.2f}" height="8" '
+                      f'fill="{cor}" opacity="0.55"/>')
+        ini = fim
+    x = (min(max(valor, minimo), maximo) - minimo) / (maximo - minimo) * largura
+    partes.append(f'<line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{altura}" '
+                  f'stroke="#FFFFFF" stroke-width="4"/>')
+    partes.append(f'<line x1="{x:.2f}" y1="0" x2="{x:.2f}" y2="{altura}" '
+                  f'stroke="{TEMA["texto"]}" stroke-width="2"/>')
+    return (f'<svg width="{largura}" height="{altura}" viewBox="0 0 {largura} {altura}" '
+            f'preserveAspectRatio="none" style="display:block;width:100%">'
+            f'{"".join(partes)}</svg>')
 
 
 # --------------------------------------------------- composicao da carteira

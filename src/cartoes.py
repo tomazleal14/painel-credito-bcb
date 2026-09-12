@@ -130,9 +130,9 @@ def cartao_indicador(df_atual: pd.DataFrame, col: str,
     quando = f"{str(data_base)[4:6]}/{str(data_base)[:4]}" if data_base else "o trimestre"
 
     grafico, eixo_html, escala_txt = "", "", ""
-    if len(todas) >= 2:
+    grafico = distribuicao(todas, atual) if len(todas) >= 2 else ""
+    if grafico:
         lo, hi = faixa_escala(todas)
-        grafico = distribuicao(todas, atual)
         eixo_html = (f"<div class='dist-eixo'><span>{num(lo, casas)}{unidade}</span>"
                      f"<span>{num(hi, casas)}{unidade}</span></div>")
         n_abaixo, n_acima = fora_da_escala(atual, lo, hi)
@@ -147,6 +147,13 @@ def cartao_indicador(df_atual: pd.DataFrame, col: str,
         escala_txt = (f"distribuição do recorte em {quando} · "
                       f"p10 {num(float(todas.quantile(.10)), casas)}{unidade} · "
                       f"p90 {num(float(todas.quantile(.90)), casas)}{unidade}{fora}")
+    elif len(todas) and todas.nunique() < 2:
+        # indicador de escopo SISTEMA: um valor por trimestre, igual para todas. Nao ha
+        # distribuicao, nao ha percentil e nao ha selecao -- dizer isso e mais honesto
+        # que desenhar um pico unico sobre uma escala fabricada.
+        escala_txt = (f"valor único do sistema em {quando} — idêntico para as "
+                      f"{len(todas)} instituições do recorte, portanto sem distribuição "
+                      f"e sem percentil")
 
     med_recorte = float(todas.median()) if len(todas) else float("nan")
 

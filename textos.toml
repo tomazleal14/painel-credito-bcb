@@ -177,12 +177,12 @@ seis indicadores existem para todos.
 [quebra.concentracao]
 nota = """
 **O patamar entre 2022Q3 e 2024Q4 é uma única instituição: o BNDES.** Com R$ 325 bilhões
-de carteira, ele sozinho responde por quase toda a diferença entre 0,7% e 5,4%. O que
+de carteira, ele sozinho responde por quase toda a diferença entre 0,7% e 5,5%. O que
 mudou nele não foi concentração: foi a razão carteira ÷ captações passar de 1,10× para
-1,18×, o suficiente para o percentil desse indicador ir de 0,50 a 1,00. Com três
-indicadores válidos (o BNDES não tem carteira PF), o score foi de 0,583 para **exatamente
-0,750** — o valor do corte. Em 2025 a razão cai para 0,66× na troca de universo e ele
-volta a "atenção".
+1,18×, o suficiente para o percentil desse indicador ir de 0,50 a 1,00. Com cinco
+indicadores válidos (o BNDES não tem carteira PF, então o de modalidades de alto risco
+fica vazio), o score foi de 0,600 para **exatamente 0,750** — o valor do corte. Em 2025 a
+razão cai para 0,25 de percentil e ele volta a "atenção", com score 0,600.
 
 Duas lições que valem para todo o painel: com poucas instituições sinalizadas e
 ponderação por tamanho, **uma sozinha move a série**; e um score que pousa exatamente no
@@ -291,14 +291,21 @@ os_componentes = """
 A lista no pé do cartão é a **mediana das instituições sinalizadas** em cada indicador
 que forma o score — ou seja, ela responde *por que aquelas foram marcadas*. Entre
 parênteses vai o valor do recorte inteiro, como referência. Em 03/2026, por exemplo, as
-7 sinalizadas em Concentração tinham **99,9%** da carteira PF em modalidades de alto
-risco, contra 27,7% do recorte; as 10 de Deterioração tinham inadimplência de **8,61%**
-contra 4,03%, com cobertura de **73%** contra 155%.
+6 sinalizadas em Concentração tinham **77,6%** do ativo em crédito, contra 57,9% do
+recorte, e **65,0%** da carteira PJ em tomadores de grande porte, contra 10,5%; as 10 de
+Deterioração tinham inadimplência de **8,61%** contra 4,03%, com cobertura de **73%**
+contra 155%.
 
-Atenção a uma assimetria: os eixos **não têm o mesmo número de percentis** — Concentração
-usa 4, e não 6, porque HHI do sistema e CR5 são idênticos para todas as instituições do
-trimestre e um valor igual para todos não gera percentil (todos empatariam). Cada cartão
-declara quantos entram na sua média.
+Os três eixos pontuam com **6 indicadores cada**. Nem sempre foi assim: até 09/2026,
+Concentração usava 4, porque HHI do sistema e CR5 ocupavam duas das seis vagas sem gerar
+percentil — são um único valor por trimestre, idêntico para todas as instituições, e
+ranquear por um número igual para todos não diria nada. Os dois passaram a aparecer como
+**contexto do sistema**, no topo da página de P2, e as vagas foram para indicadores que
+medem a instituição.
+
+Isso não significa que toda instituição tenha os 6: indicador sem dado reduz o divisor
+daquela instituição. O BNDES, por exemplo, pontua em Concentração com 5, porque não tem
+carteira PF para o indicador de modalidades de alto risco.
 """
 
 # ---------------------------------------------------------------------------

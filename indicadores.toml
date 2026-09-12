@@ -42,11 +42,21 @@ crescimento = [
 ]
 
 # P2 -- CONCENTRAÇÃO
-# alternativas: p2_7_hhi_modalidade_pf, p2_8_max_regiao_pct, p2_9_credito_sobre_ativo,
+# alternativas: p2_1_hhi_sistema, p2_2_cr5_sistema_pct, p2_8_max_regiao_pct,
 #               p2_10_ticket_medio, p2_11_pct_capital_giro, p2_12_hhi_porte_pj
+#
+# p2_9 e p2_7 entraram no lugar de p2_1 (HHI do sistema) e p2_2 (CR5) em 09/2026.
+# Motivo: os dois sao de ESCOPO SISTEMA -- um unico valor por trimestre, identico para
+# as 258 instituicoes. Nunca entraram no score (o escopo ja os excluia), entao P2
+# pontuava com 4 indicadores enquanto P1 e P3 pontuavam com 6 -- base mais estreita e
+# mais volatil, que foi o que produziu o salto do BNDES em 2022Q3. Alem disso o cartao
+# deles era degenerado: com um valor distinto, o grafico de distribuicao fabricava um
+# teto de escala (o eixo do CR5 chegava a exibir 129,6%, impossivel por definicao).
+# HHI e CR5 continuam no painel como CONTEXTO DO SISTEMA -- no topo da pagina de P2 e
+# nas metricas da Visao geral --, que e o papel que sempre tiveram.
 concentracao = [
-  "p2_1_hhi_sistema",
-  "p2_2_cr5_sistema_pct",
+  "p2_9_credito_sobre_ativo",
+  "p2_7_hhi_modalidade_pf",
   "p2_3_pct_alto_risco",
   "p2_4_hhi_regional",
   "p2_5_pct_grande_porte",

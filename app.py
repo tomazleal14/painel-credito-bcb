@@ -29,7 +29,7 @@ import textos as _textos
 from scoring import (CORTE_ALTO, EIXOS, FRACAO_MINIMA, MIN_INDICADORES, PESOS_PADRAO,
                      agenda, agenda_grandes, calcula_scores)
 from tema import (ALTURA_GRAFICO, ALTURA_GRAFICO_GRANDE, ICONE_SEMAFORO,
-                  SEMAFORO, TEMA, layout_base, monta_css)
+                  SEMAFORO, SEMAFORO_SOFT, TEMA, layout_base, monta_css, regua)
 
 DATA_PROC = RAIZ / "data_processed"
 MIN_BASILEIA = 10.5
@@ -40,7 +40,7 @@ LIMIAR_BOOM = 0.15
 # atualizou" olhando a tela. VERSAO muda a cada alteracao que mexe nos numeros; a
 # impressao digital e do arquivo de dados. Se o que aparece no rodape da barra lateral
 # do Cloud nao bater com o local, o Cloud esta atrasado -- e nao ha o que depurar.
-VERSAO = "2026-09-11b · cartões de P1/P2/P3 mostram a distribuição do trimestre"
+VERSAO = "2026-09-11c · HHI e CR5 viram contexto; P2 pontua com 6 indicadores"
 
 st.set_page_config(page_title="Painel de Supervisão de Crédito — BCB",
                    page_icon="◧", layout="wide",
@@ -860,8 +860,75 @@ with aba1:
 
 
 # ================================================================== P2
+def contexto_sistema() -> None:
+    """HHI e CR5 como CONTEXTO, e nao como indicador da instituição.
+
+    Os dois têm um único valor por trimestre, idêntico para as 258 instituições do
+    recorte. Nunca entraram no score — o escopo "sistema" já os excluía —, mas ocupavam
+    duas das seis vagas de P2, que por isso pontuava com 4 percentis enquanto P1 e P3
+    pontuavam com 6. Como cartão eram piores ainda: sem dispersão, o gráfico de
+    distribuição fabricava um teto de escala.
+
+    Aqui eles ficam onde fazem sentido: uma faixa de contexto, lida contra os limiares
+    de referência, antes dos seis indicadores que de fato distinguem instituições.
+    """
+    hhi_v = univ["p2_1_hhi_sistema"].dropna()
+    cr5_v = univ["p2_2_cr5_sistema_pct"].dropna()
+    if hhi_v.empty and cr5_v.empty:
+        return
+
+    c1, c2 = st.columns(2, gap="medium")
+    if not hhi_v.empty:
+        v = float(hhi_v.iloc[0])
+        nivel = ("baixo" if v < 1500 else "medio" if v < 2500 else "alto")
+        with c1:
+            st.markdown(
+                f"<div class='cartao'>"
+                f"<div class='cartao-topo'><span class='cartao-rotulo'>HHI do sistema"
+                f"</span><span class='selo' style='background:{SEMAFORO_SOFT[nivel]};"
+                f"color:{SEMAFORO[nivel]}'>"
+                f"{'desconcentrado' if nivel == 'baixo' else 'moderado' if nivel == 'medio' else 'concentrado'}"
+                f"</span></div>"
+                f"<div class='cartao-valor'>{cartoes.num(v, 0)}</div>"
+                f"<div class='cartao-releitura'>soma dos quadrados das participações de "
+                f"mercado, de 0 a 10.000</div>"
+                f"<div class='cartao-dist'>{regua(v, 0, 5000, [(1500, TEMA['risco_baixo']), (2500, TEMA['risco_medio']), (5000, TEMA['risco_alto'])])}</div>"
+                f"<div class='dist-eixo'><span>0</span><span>1.500</span>"
+                f"<span>2.500</span><span>5.000</span></div>"
+                f"<div class='cartao-escala'>abaixo de 1.500 desconcentrado · 1.500 a "
+                f"2.500 moderadamente concentrado · acima de 2.500 concentrado. A régua "
+                f"vai até 5.000; o máximo teórico é 10.000 (monopólio).</div></div>",
+                unsafe_allow_html=True)
+    if not cr5_v.empty:
+        v = float(cr5_v.iloc[0])
+        with c2:
+            st.markdown(
+                f"<div class='cartao'>"
+                f"<div class='cartao-topo'><span class='cartao-rotulo'>CR5</span></div>"
+                f"<div class='cartao-valor'>{cartoes.num(v, 1)}<span class='unidade'>%"
+                f"</span></div>"
+                f"<div class='cartao-releitura'>fatia da carteira nas cinco maiores "
+                f"instituições</div>"
+                f"<div class='cartao-dist'>{regua(v, 0, 100, [(100, TEMA['marca_clara'])])}</div>"
+                f"<div class='dist-eixo'><span>0%</span><span>50%</span>"
+                f"<span>100%</span></div>"
+                f"<div class='cartao-escala'>Complementa o HHI, que pode ser baixo só "
+                f"por haver milhares de cooperativas pequenas. Não há limiar oficial: "
+                f"é leitura de nível e de tendência.</div></div>",
+                unsafe_allow_html=True)
+
+    st.markdown(
+        f"<div class='rodape-fonte'>Estes <b>dois números descrevem o mercado, não a "
+        f"instituição</b> — têm um único valor por trimestre, idêntico para as "
+        f"{len(univ)} do recorte. Por isso não geram percentil e <b>não entram no "
+        f"score</b>: ranquear instituições por um número igual para todas não diria "
+        f"nada. Eles definem o contexto em que os seis indicadores abaixo são lidos."
+        f"</div><div style='height:10px'></div>", unsafe_allow_html=True)
+
+
 with aba2:
     st.markdown(f"#### {T.txt('abas.p2')}")
+    contexto_sistema()
     faixa_cartoes("p2")
     m1c1, m1c2 = st.columns(2)
 

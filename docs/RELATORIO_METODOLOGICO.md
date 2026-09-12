@@ -268,8 +268,8 @@ Este é o caso que mais engana, porque as duas afirmações são verdadeiras ao 
 a série de concentração cobre **29 de 29 trimestres** (03/2019 a 03/2026, sem lacuna) e,
 ainda assim, o gráfico da Visão geral tem um patamar visível entre 2022Q3 e 2024Q4. Não é
 contradição, e **não é erro de cálculo** — a cobertura dos indicadores de P2 é estável em
-toda a janela (o expander de cobertura mostra **4 indicadores em todos os trimestres**,
-sem o degrau de composição que P1 e P3 têm).
+toda a janela (o expander de cobertura mostra o **mesmo número de indicadores em todos os
+trimestres**, sem o degrau de composição que P1 e P3 têm).
 
 A explicação é de **granulosidade do conjunto sinalizado**, não da série. O número de
 destaque é *carteira exposta*: a soma da carteira das instituições sinalizadas, sobre a
@@ -279,9 +279,9 @@ essencialmente, **o BNDES**:
 
 | data-base | score P2 do BNDES | semáforo | o que mudou | carteira exposta |
 |---|---|---|---|---|
-| 2022Q2 | 0,583 | médio | carteira ÷ captações em 1,10× (percentil 0,500) | 0,7% |
-| 2022Q3 | **0,750** | **alto** | razão sobe a 1,18× → percentil 0,500 **→ 1,000** | **5,4%** |
-| 2025Q1 | 0,500 | médio | razão cai a 0,66× → percentil 0,250 | 0,8% |
+| 2022Q2 | 0,600 | médio | carteira ÷ captações em 1,10× (percentil 0,500) | 0,7% |
+| 2022Q3 | **0,750** | **alto** | razão sobe a 1,18× → percentil 0,500 **→ 1,000** | **5,5%** |
+| 2025Q1 | 0,600 | médio | percentil da razão cai a 0,250 | 0,6% |
 
 Três leituras que precisam ficar juntas:
 
@@ -332,8 +332,8 @@ por muito tempo, concentrado e com critérios frouxos.*
 
 | # | Indicador | Fórmula | Fonte | Sentido |
 |---|---|---|---|---|
-| 1 | HHI do sistema | `Σ share² × 10.000` | IF.data · Resumo | contexto (sistema) |
-| 2 | CR5 | share somado das 5 maiores | IF.data · Resumo | contexto (sistema) |
+| 1 | Crédito ÷ ativo total | `carteira ÷ ativo total` | IF.data · Resumo | maior = pior |
+| 2 | HHI de modalidades PF | `Σ share_modalidade² × 10.000` | IF.data · Carteira PF (7 modalidades) | maior = pior |
 | 3 | Carteira PF em alto risco | `(cartão + sem consignação) ÷ total PF` | IF.data · Carteira PF | maior = pior |
 | 4 | HHI regional | `Σ share_região² × 10.000` | IF.data · Região geográfica | maior = pior |
 | 5 | Carteira PJ em grande porte | `PJ grande porte ÷ total PJ do mesmo relatório` | IF.data · Porte do tomador | maior = pior |
@@ -423,11 +423,34 @@ mostrá-lo ajustável em vez de defender um número.
 
 Foram 5 e não 6 percentis: o credit gap exige 12 trimestres de série e o Nubank não tem.
 
-### Dois indicadores não pontuam
-**HHI do sistema** e **CR5** medem o mercado inteiro e têm valor idêntico para todas as
-instituições do trimestre (confirmado: assumem **um único valor** no recorte). Ranquear por
-um número igual para todas não faria sentido — eles são dois dos 18, mas definem o contexto,
-não a posição. Por isso Concentração compõe seu score com **4 percentis**, não 6.
+### HHI e CR5 saíram dos 18 e viraram contexto do sistema
+
+**HHI do sistema** e **CR5** medem o mercado inteiro: no recorte de 03/2026 assumem **um
+único valor** para as 258 instituições (951 e 64,8%). Ranquear instituições por um número
+igual para todas não diz nada, e por isso o escopo `sistema` do catálogo sempre os excluiu
+do percentil.
+
+Até 09/2026 eles ocupavam duas das seis vagas de P2 mesmo assim, com três consequências
+ruins: **(i)** Concentração pontuava com **4 percentis** enquanto P1 e P3 pontuavam com 6
+— base mais estreita e mais volátil, que é o que produz saltos como o do BNDES; **(ii)** o
+cartão deles era degenerado — sem dispersão, o gráfico de distribuição fabricava um teto
+de escala, e o eixo do CR5 chegava a exibir **129,6%**, impossível por definição; **(iii)**
+o par "sinalizadas × recorte" mostrava o mesmo número duas vezes.
+
+Agora os dois aparecem como **faixa de contexto no topo da página de P2**, lidos contra os
+limiares de referência (HHI abaixo de 1.500 desconcentrado, 1.500–2.500 moderado, acima
+concentrado) — que é o que dá sentido a um número de sistema, já que ele não tem posição
+relativa. Continuam também nas métricas do topo da Visão geral.
+
+As duas vagas foram para **Crédito ÷ ativo total** (cobertura integral, 258 de 258, e mede
+uma dimensão que P2 não tinha: quanto do balanço está exposto a crédito) e **HHI de
+modalidades PF** (concentração de produto, complementando o % em alto risco PF sem
+duplicá-lo). Evitaram-se "Maior região" e "HHI de porte do tomador", redundantes com o HHI
+regional e com o % em grande porte, já presentes.
+
+Efeito na seleção em 03/2026, com o corte padrão: Concentração passa de 7 para **6**
+instituições sinalizadas, e a carteira exposta de 0,8% para **0,5%**. Os três eixos passam
+a pontuar com 6.
 
 ### O número de destaque dos cartões
 Não é o score: é a **fatia da carteira do recorte em instituições sinalizadas** naquele eixo.
