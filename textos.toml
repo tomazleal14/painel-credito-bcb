@@ -849,6 +849,18 @@ listas. Um score 0,75 num grupo de 154 cooperativas e um 0,75 num grupo de 66 ba
 superior de populações diferentes e **não são diretamente comparáveis** entre si; no grupo b4, com
 apenas 3 instituições no recorte, o percentil quase não carrega informação.
 
+**4c. A linha de sistema não é um sistema consolidado.** Quando a agenda reúne cooperativas do
+mesmo sistema numa linha — em 03/2026, 11 das 21 posições eram singulares Cresol —, ela **conta
+instituições sinalizadas**; não soma balanços. Só a carteira é somada, porque nível soma;
+inadimplência, cobertura e Basileia ficam **vazias**, já que razão de conjunto não é média das
+razões dos membros. E a filiação é **construção nossa**: o IF.data não publica o vínculo (toda
+singular consta como "Instituição independente"), então ele é deduzido da marca no nome
+publicado e alcança **63% das cooperativas**. Onde a marca não aparece no nome legal —
+Credicitrus, Viacredi, Sisprime, Sul-Serrana entre as maiores —, a cooperativa é lida como
+independente e a presença do sistema fica **subestimada**. A chave *Agrupar cooperativas do
+mesmo sistema* desfaz o agrupamento; a coluna **Sistema** continua na tabela nos dois modos, e
+o CSV de download sai sempre por instituição.
+
 **5. Não enxerga o que não está no balanço.** Cessões de crédito, coobrigação, exposições fora
 do balanço, risco de mercado e liquidez ficam fora do recorte destes relatórios.
 

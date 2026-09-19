@@ -25,6 +25,7 @@ import streamlit as st
 import cartoes
 import catalogo
 import filtros
+import grupos
 import textos as _textos
 from scoring import (CORTE_ALTO, EIXOS, FRACAO_MINIMA, MIN_INDICADORES, PESOS_PADRAO,
                      agenda, agenda_grandes, calcula_scores)
@@ -40,7 +41,8 @@ LIMIAR_BOOM = 0.15
 # atualizou" olhando a tela. VERSAO muda a cada alteracao que mexe nos numeros; a
 # impressao digital e do arquivo de dados. Se o que aparece no rodape da barra lateral
 # do Cloud nao bater com o local, o Cloud esta atrasado -- e nao ha o que depurar.
-VERSAO = "2026-09-12c · guarda de ticket em P2 nº 3: proxy de modalidade só vale no varejo"
+VERSAO = ("2026-09-18b · agenda agrupada por sistema cooperativo (só apresentação), "
+          "com coluna Sistema na tela; comparador não perde mais coluna por nome repetido")
 
 st.set_page_config(page_title="Painel de Supervisão de Crédito — BCB",
                    page_icon="◧", layout="wide",
@@ -65,6 +67,12 @@ def carrega():
 
 ind, sgs, scr, cat_sgs, defl = carrega()
 BASE_DEFL = int(defl["base_do_indice"].iloc[0])
+
+# Rotulo de sistema cooperativo. E SO APRESENTACAO: nenhuma conta usa esta coluna --
+# src/checa_grupos.py verifica que as 91 colunas numericas ficam identicas com e sem
+# ela. Existe porque 154 das 258 instituicoes do recorte sao cooperativas singulares
+# e 11 das 21 vagas da agenda eram singulares do mesmo sistema. Ver src/grupos.py.
+ind["grupo"] = grupos.atribui(ind)
 
 
 # Textos: cache com chave no mtime de textos.toml. Salvar o arquivo muda o mtime,
@@ -133,9 +141,24 @@ def nomes_distintos(nomes: list[str], n: int = 44) -> list[str]:
     delas viravam a mesma legenda, "COOPERATIVA DE CRÉDITO, POUPANÇA E INVESTIM…".
     Quando há colisão, o rótulo passa a mostrar começo E fim — é no fim que mora o que
     diferencia ("… - SICOOB ARACOOP").
+
+    Rótulo IGUAL não é o único fracasso: "COOPERATIVA DE CRÉDITO E INVE…" e
+    "COOPERATIVA DE CRÉDITO DE LIV…" são formalmente distintos e, na prática,
+    indistinguíveis. Por isso o gatilho é o prefixo comum, não só a igualdade.
     """
     base = [nome_curto(x, n) for x in nomes]
-    if len(set(base)) == len(base):
+    limite = max(8, n * 3 // 4)
+
+    def confundem(a: str, b: str) -> bool:
+        comum = 0
+        for x, y in zip(a, b):
+            if x != y:
+                break
+            comum += 1
+        return a == b or comum >= limite
+
+    if not any(confundem(base[i], base[j])
+               for i in range(len(base)) for j in range(i + 1, len(base))):
         return base
     saida = []
     for bruto in nomes:
@@ -239,10 +262,14 @@ def impressao_dados() -> str:
 # da Res. 4.966 aplicada, 25 é a versão anterior. É a checagem mais direta de defasagem.
 _trim_p1 = int(ind.loc[ind["p1_1_cresc_real_aa"].notna(), "data_base"].nunique()) \
     if "p1_1_cresc_real_aa" in ind else 0
+# O separador de milhar vai para o padrao pt-BR SO no numero de linhas. O `.replace`
+# aplicado à frase inteira, como estava, comia qualquer virgula da mensagem de build:
+# "(só apresentação), com coluna" virava "(só apresentação). com coluna".
+_linhas_fmt = f"{len(ind):,}".replace(",", ".")
 st.sidebar.caption(
     f"**Build:** {VERSAO}  \n"
-    f"dados `{impressao_dados()}` · {len(ind):,} linhas · "
-    f"P1 com {_trim_p1} trimestres".replace(",", "."))
+    f"dados `{impressao_dados()}` · {_linhas_fmt} linhas · "
+    f"P1 com {_trim_p1} trimestres")
 
 
 # ------------------------------------------------------------------ cabecalho
@@ -436,21 +463,82 @@ with aba0:
     # relevancia sistemica: com uma lista so, os cinco maiores bancos do pais ficavam
     # entre a 548a e a 1046a posicao e nao entravam na agenda.
     def monta_tabela(dados: pd.DataFrame) -> pd.DataFrame:
-        return pd.DataFrame([{
-            "#": int(r.posicao),
-            "Instituição": r.instituicao,
-            "TCB": r.tcb,
-            "Seg.": r.segmento_sr,
-            "Carteira": r.carteira_credito_real / 1e9,
-            "Cresc. real a.a.": r.p1_1_cresc_real_aa,
-            "Inadimpl.": r.p3_1_inadimplencia,
-            "Cobertura": r.p3_2_cobertura,
-            "Basileia": r.indice_basileia,
-            "Cresc.": ICONE_SEMAFORO[r.sem_crescimento],
-            "Conc.": ICONE_SEMAFORO[r.sem_concentracao],
-            "Deter.": ICONE_SEMAFORO[r.sem_deterioracao],
-            "Score": r.score_final,
-        } for r in dados.itertuples()])
+        """Uma linha por item. Linhas de SISTEMA não trazem razão nenhuma.
+
+        Carteira é nível, e nível soma. Inadimplência, cobertura, Basileia e
+        crescimento são razão — e a razão de um conjunto não é a média das razões
+        dos membros: cada uma teria de ser refeita a partir dos numeradores e
+        denominadores somados, o que é consolidar de fato, e não é o que este
+        agrupamento faz. Campo vazio é a leitura honesta; o detalhamento abaixo da
+        tabela traz os números de cada singular.
+        """
+        def pc(v, aplicavel: bool = True) -> str:
+            """Percentual pt-BR, ou travessão quando não há valor.
+
+            As quatro colunas de razão saem como TEXTO, e não como número, porque
+            esta versão do Streamlit escreve o literal "None" em toda célula
+            numérica vazia — verificado isoladamente, vale para float64 e para
+            Float64, com ou sem `format`, e um Styler com `na_rep` não alcança o
+            grid. Como razão que falta é a regra neste painel, e não a exceção,
+            "None" apareceria com frequência. O preço é a ordenação da coluna, que
+            passa a ser alfabética; Carteira e Score seguem numéricas.
+            """
+            if not aplicavel or v is None or not math.isfinite(v):
+                return "—"
+            return f"{cartoes.num(v * 100, 2)}%"
+
+        linhas = []
+        for r in dados.itertuples():
+            sis = getattr(r, "linha_tipo", "instituicao") == "sistema"
+            # NaN é verdadeiro em Python: `nan or "—"` devolveria nan, e a célula
+            # sairia com o texto "nan". Só string não vazia vale como sistema.
+            g = getattr(r, "grupo", "")
+            linhas.append({
+                "#": int(r.posicao),
+                "Instituição": getattr(r, "rotulo", r.instituicao),
+                "Sistema": g if isinstance(g, str) and g else "—",
+                "TCB": r.tcb,
+                "Seg.": "—" if sis else r.segmento_sr,
+                "Carteira": (getattr(r, "carteira_grupo", r.carteira_credito_real)
+                             if sis else r.carteira_credito_real) / 1e9,
+                "Cresc. real a.a.": pc(r.p1_1_cresc_real_aa, not sis),
+                "Inadimpl.": pc(r.p3_1_inadimplencia, not sis),
+                "Cobertura": pc(r.p3_2_cobertura, not sis),
+                "Basileia": pc(r.indice_basileia, not sis),
+                "Cresc.": "—" if sis else ICONE_SEMAFORO[r.sem_crescimento],
+                "Conc.": "—" if sis else ICONE_SEMAFORO[r.sem_concentracao],
+                "Deter.": "—" if sis else ICONE_SEMAFORO[r.sem_deterioracao],
+                "Score": r.score_final,
+            })
+        return pd.DataFrame(linhas)
+
+    def detalha_sistemas(colapsada: pd.DataFrame, completa: pd.DataFrame) -> None:
+        """Abre, sistema a sistema, as singulares que a linha agrupada representa."""
+        sistemas = colapsada[colapsada["linha_tipo"] == "sistema"]
+        if sistemas.empty:
+            return
+        st.markdown("<div class='rodape-fonte'>Detalhamento das linhas de sistema — "
+                    "cada uma abre a lista completa das singulares que representa."
+                    "</div>", unsafe_allow_html=True)
+        for r in sistemas.itertuples():
+            # o rotulo do expander e markdown, e DOIS cifroes na mesma linha abrem
+            # modo matematico: "R$ 18,9 bi de R$ 21,9 bi" virava LaTeX. Escapa-se.
+            titulo = (f"{str(r.grupo).upper()} — {r.n_sinalizadas} de {r.n_recorte} "
+                      f"singulares sinalizadas · "
+                      f"R\\$ {cartoes.num(r.carteira_grupo / 1e9, 1)} bi de "
+                      f"R\\$ {cartoes.num(r.carteira_recorte / 1e9, 1)} bi no recorte")
+            with st.expander(titulo):
+                membros = grupos.membros(completa, r.grupo)
+                tab = monta_tabela(membros)
+                # As singulares de um sistema compartilham um prefixo longo -- as onze
+                # da Cresol comecam com os mesmos 55 caracteres, e o que as distingue
+                # ("- CRESOL FRONTEIRAS", "- CRESOL CENTRO SUL") mora no fim do nome.
+                # Truncar pela cabeca devolvia onze rotulos identicos.
+                tab["Instituição"] = nomes_distintos(
+                    membros["instituicao"].tolist(), n=52)
+                st.dataframe(tab, width='stretch', hide_index=True,
+                             height=min(460, 60 + 35 * len(membros)),
+                             column_config=COLUNAS)
 
     # `help` de cada coluna: e onde a variavel e decifrada, sem sair da tabela
     COLUNAS = {
@@ -458,7 +546,20 @@ with aba0:
             "#", width="small", format="%d",
             help="Posição NESTA lista, da mais prioritária para a menos. "
                  "Não é o ranking geral do sistema."),
-        "Instituição": st.column_config.TextColumn("Instituição", width="large"),
+        "Instituição": st.column_config.TextColumn(
+            "Instituição", width="large",
+            help="Uma linha que começa com SISTEMA reúne as cooperativas singulares "
+                 "de um mesmo sistema. O '11 de 13' lê-se: 11 singulares "
+                 "sinalizadas entre as 13 que estão no recorte. Abra o "
+                 "detalhamento abaixo da tabela para ver cada uma."),
+        "Sistema": st.column_config.TextColumn(
+            "Sistema", width="small",
+            help="Sistema cooperativo a que a instituição pertence. NÃO é campo do "
+                 "IF.data, que não publica o vínculo e classifica toda singular como "
+                 "instituição independente: é deduzido da marca no nome publicado e "
+                 "alcança 63% das cooperativas. Travessão = banco, ou cooperativa sem "
+                 "marca no nome legal — que segue listada individualmente. A coluna "
+                 "aparece com o agrupamento ligado ou desligado, e vai no CSV."),
         "TCB": st.column_config.TextColumn(
             "TCB", width="small",
             help="Tipo de Consolidado Bancário — a classificação do BCB por modelo de "
@@ -470,23 +571,26 @@ with aba0:
         "Carteira": st.column_config.NumberColumn(
             "Carteira (R$ bi)", format="%.1f",
             help="Carteira de crédito, em bilhões de reais de 03/2026, deflacionada "
-                 "pelo IPCA (SGS 433)."),
-        "Cresc. real a.a.": st.column_config.NumberColumn(
-            "Cresc. real a.a.", format="percent",
+                 "pelo IPCA (SGS 433). Na linha de um sistema, é a soma das "
+                 "singulares sinalizadas — carteira é nível, e nível soma. As "
+                 "demais colunas da linha de sistema ficam vazias porque são "
+                 "razões, e razão de conjunto não é média de razões."),
+        "Cresc. real a.a.": st.column_config.TextColumn(
+            "Cresc. real a.a.",
             help="Crescimento da carteira em 12 meses, já descontada a inflação. "
                  "É a variável-mestra de P1: acima de 15% a.a. real é o limiar de "
                  "crescimento acelerado adotado aqui."),
-        "Inadimpl.": st.column_config.NumberColumn(
-            "Inadimpl.", format="percent",
+        "Inadimpl.": st.column_config.TextColumn(
+            "Inadimpl.",
             help="Carteira em atraso acima de 90 dias, sobre a carteira total. "
                  "Cuidado com o efeito denominador: carteira que cresce rápido dilui "
                  "este índice e esconde perda futura."),
-        "Cobertura": st.column_config.NumberColumn(
-            "Cobertura", format="percent",
+        "Cobertura": st.column_config.TextColumn(
+            "Cobertura",
             help="Provisão dividida pela carteira em atraso. 100% cobre integralmente "
                  "o atraso; abaixo disso há perda ainda não reconhecida no balanço."),
-        "Basileia": st.column_config.NumberColumn(
-            "Basileia", format="percent",
+        "Basileia": st.column_config.TextColumn(
+            "Basileia",
             help="Índice de Basileia: capital sobre ativos ponderados pelo risco. "
                  "O mínimo de referência é 10,5% (8% de requisito mais 2,5% de "
                  "conservação)."),
@@ -500,13 +604,35 @@ with aba0:
             "Score", format="%.3f", min_value=0.0, max_value=1.0,
             help="Score composto de posição relativa, de 0 a 1: média dos percentis dos "
                  "indicadores dentro do grupo de pares (mesmo TCB), ponderada pelos "
-                 "pesos da barra lateral. 0,50 = mediana do grupo."),
+                 "pesos da barra lateral. 0,50 = mediana do grupo. Na linha de um "
+                 "sistema é o MAIOR score entre as singulares sinalizadas — o pior "
+                 "caso do sistema —, nunca uma média."),
     }
 
-    t1, t2 = st.tabs([f"Atípicas no grupo de pares ({len(lista)})",
+    # ---- agrupamento por sistema cooperativo ----
+    # Sem isto, 11 das 21 vagas da agenda de 03/2026 eram singulares Cresol: onze
+    # linhas quase identicas empurrando o resto do recorte para fora da tela. O
+    # agrupamento e so de apresentacao -- nenhum score muda (src/checa_grupos.py).
+    # A chave fica visivel para que a escolha metodologica possa ser desfeita na
+    # propria tela, e nao escondida no codigo.
+    agrupar = st.toggle(
+        "Agrupar cooperativas do mesmo sistema", value=True,
+        help="Reúne numa linha só as singulares do mesmo sistema cooperativo "
+             "(Sicredi, Sicoob, Cresol…). Nenhum número é recalculado: o score de "
+             "cada singular continua sendo o dela, e a lista completa fica no "
+             "detalhamento e no CSV. A filiação é deduzida da marca no nome "
+             "publicado pelo IF.data — que não divulga o vínculo —, e cobre 63% "
+             "das cooperativas; as demais seguem individuais.")
+    vis = grupos.colapsa(lista, univ) if agrupar else lista
+
+    t1, t2 = st.tabs([f"Atípicas no grupo de pares ({len(vis)})",
                       f"Grandes com sinal ({len(lista_grandes)})"])
 
     with t1:
+        colapso = (f" Onde havia várias singulares do mesmo sistema, a lista mostra "
+                   f"<b>uma linha por sistema</b>: {len(lista)} instituições em "
+                   f"<b>{len(vis)}</b> linhas."
+                   if agrupar and len(vis) < len(lista) else "")
         st.markdown(
             f"<div class='aviso'>Entram as instituições com <b>score ≥ {limiar:.2f}</b> "
             f"e carteira ≥ {filtros.fmt_reais(porte_min)}: <b>{len(lista)}</b> de "
@@ -514,14 +640,16 @@ with aba0:
             f"pares</b> — quem está muito fora do padrão do próprio tipo de instituição. "
             f"Não mede relevância sistêmica: as {len(lista)} somam "
             f"{lista['carteira_credito_real'].sum()/univ['carteira_credito_real'].sum()*100:.1f}% "
-            f"da carteira do recorte.</div>",
+            f"da carteira do recorte.{colapso}</div>",
             unsafe_allow_html=True)
         if lista.empty:
             st.warning(f"Nenhuma instituição atinge score {limiar:.2f}. "
                        "Baixe o limiar na barra lateral.")
         else:
-            st.dataframe(monta_tabela(lista), width='stretch', hide_index=True,
-                         height=min(560, 60 + 35 * len(lista)), column_config=COLUNAS)
+            st.dataframe(monta_tabela(vis), width='stretch', hide_index=True,
+                         height=min(560, 60 + 35 * len(vis)), column_config=COLUNAS)
+            if agrupar:
+                detalha_sistemas(vis, lista)
 
     with t2:
         st.markdown(
@@ -545,19 +673,29 @@ with aba0:
         f"{sem_html('medio')} atenção (≥ 50) &nbsp;·&nbsp; "
         f"{sem_html('baixo')} baixo (&lt; 50) &nbsp;·&nbsp; "
         f"{sem_html('sem')} sem dado suficiente &nbsp;·&nbsp; "
+        f"<b>—</b> célula sem valor: ou o dado não existe no trimestre, ou é uma "
+        f"linha de sistema, e razão de conjunto não se soma &nbsp;·&nbsp; "
         f"passe o mouse no cabeçalho de cada coluna para ver o que ela mede</div>",
         unsafe_allow_html=True)
+
+    def para_csv(dados: pd.DataFrame) -> bytes:
+        """O CSV sai SEMPRE por instituição, mesmo com o agrupamento ligado.
+
+        A tela agrupa para caber; o arquivo é o registro, e registro não pode
+        depender de uma chave de exibição. A coluna Sistema, que `monta_tabela`
+        já produz, preserva o vínculo no arquivo.
+        """
+        return monta_tabela(dados).to_csv(index=False).encode("utf-8-sig")
 
     c1, c2 = st.columns(2)
     if not lista.empty:
         c1.download_button(
-            "Baixar lista de atípicas (CSV)",
-            monta_tabela(lista).to_csv(index=False).encode("utf-8-sig"),
-            file_name=f"agenda_atipicas_{dt_sel}.csv", mime="text/csv")
+            "Baixar lista de atípicas (CSV)", para_csv(lista),
+            file_name=f"agenda_atipicas_{dt_sel}.csv", mime="text/csv",
+            help="Uma linha por instituição, com a coluna Sistema — não agrupado.")
     if not lista_grandes.empty:
         c2.download_button(
-            "Baixar lista de grandes (CSV)",
-            monta_tabela(lista_grandes).to_csv(index=False).encode("utf-8-sig"),
+            "Baixar lista de grandes (CSV)", para_csv(lista_grandes),
             file_name=f"agenda_grandes_{dt_sel}.csv", mime="text/csv")
 
     fonte(f"BCB/IF.data, data-base {fmt_trimestre(dt_sel)}. Valores reais em R$ de "
@@ -1481,9 +1619,21 @@ with aba4:
     opcoes = (univ.sort_values("carteira_credito_real", ascending=False)
                   [["cod_inst", "instituicao"]].drop_duplicates("cod_inst"))
     mapa = dict(zip(opcoes["cod_inst"], opcoes["instituicao"]))
-    # pre-seleciona as tres primeiras da agenda de atipicas do trimestre
-    padrao = lista["cod_inst"].head(3).tolist() if not lista.empty else []
-    padrao = [c for c in padrao if c in mapa][:3]
+    # Pre-seleciona as tres primeiras da agenda, UMA POR SISTEMA. Sem isso a tela
+    # abria comparando tres singulares Cresol entre si -- tres colunas parecidas
+    # que nao respondem a pergunta do comparador, que e contrastar perfis.
+    if lista.empty:
+        padrao = []
+    else:
+        vistos, padrao = set(), []
+        for r in lista.itertuples():
+            chave = grupos.chave_linha(getattr(r, "grupo", ""), r.cod_inst)
+            if chave in vistos or r.cod_inst not in mapa:
+                continue
+            vistos.add(chave)
+            padrao.append(r.cod_inst)
+            if len(padrao) == 3:
+                break
 
     sel = st.multiselect("Instituições (2 a 4)", list(mapa), default=padrao,
                          format_func=lambda c: mapa.get(c, c), max_selections=4)
@@ -1513,13 +1663,19 @@ with aba4:
             ("(contexto) Ticket médio por cliente (R$ mil)", "ctx_ticket_medio_real",
              lambda v: v / 1e3, "{:,.1f}"),
         ]
+        # Cortar o nome em 22 caracteres fazia DUAS cooperativas do mesmo sistema
+        # virarem a mesma chave do dicionario -- "COOPERATIVA DE CRÉDITO" e
+        # "COOPERATIVA DE CRÉDITO" --, e a segunda sobrescrevia a primeira: o
+        # comparador mostrava tres selecionadas e duas colunas, sem avisar.
+        rotulos = dict(zip(sel, nomes_distintos([mapa[c] for c in sel], n=30)))
+
         linhas = []
         for rotulo, col, tr, f in LINHAS:
             reg = {"Indicador": rotulo}
             for cod in sel:
                 r = comp[comp["cod_inst"] == cod]
                 v = r[col].iloc[0] if (len(r) and col in r.columns) else None
-                reg[mapa[cod][:22]] = f.format(tr(v)) if pd.notna(v) else "—"
+                reg[rotulos[cod]] = f.format(tr(v)) if pd.notna(v) else "—"
             mediana = univ[col].median() if col in univ.columns else None
             reg["Mediana do recorte"] = f.format(tr(mediana)) if pd.notna(mediana) else "—"
             linhas.append(reg)
@@ -1531,7 +1687,7 @@ with aba4:
         for i, cod in enumerate(sel):
             r = comp[comp["cod_inst"] == cod].iloc[0]
             with cols[i]:
-                st.markdown(f"**{mapa[cod][:30]}**")
+                st.markdown(f"**{rotulos[cod]}**")
                 for eixo in EIXOS:
                     st.markdown(
                         f"{sem_html(r[f'sem_{eixo}'])} {eixo.capitalize()} — "

@@ -473,6 +473,62 @@ agenda cobria 1% da carteira (`src/diagnostica_agenda.py`).
 
 Juntas: 35 instituições, 83% da carteira, **sem sobreposição**.
 
+### 6.1 Sistemas cooperativos — agrupamento de apresentação
+
+No recorte de 03/2026, **154 das 258 instituições são cooperativas singulares**, e **11 das
+21 posições da agenda de atípicas eram singulares do sistema Cresol**. Não é um acaso do
+trimestre: em 12/2021 eram 11 Sicredi e 9 Sicoob numa agenda de 46. Onze linhas quase
+idênticas empurram o resto do recorte para fora da tela.
+
+O painel passou a exibir **uma linha por sistema** quando duas ou mais singulares do mesmo
+sistema estão sinalizadas. A chave *Agrupar cooperativas do mesmo sistema*, na própria tela,
+desfaz o agrupamento — a escolha metodológica fica visível, e não escondida no código.
+
+Colapsadas, as linhas dizem algo que antes não se via:
+
+| sistema | sinalizadas / no recorte | carteira sinalizada |
+|---|---|---|
+| Cresol | **11 de 13** (85%) | R$ 18,9 bi de R$ 21,9 bi |
+| Sicoob | **2 de 42** (5%) | R$ 6,8 bi de R$ 102,9 bi |
+
+**É agrupamento, não consolidação.** Nenhum indicador, percentil ou score é recalculado;
+cada singular continua pontuada individualmente no grupo de pares dela. `src/checa_grupos.py`
+verifica que as 91 colunas numéricas da base ficam idênticas com e sem a coluna de sistema.
+Na linha de sistema, só a **carteira** é somada — nível soma. Inadimplência, cobertura,
+Basileia e crescimento saem **vazias**: razão de conjunto não é média das razões dos membros,
+e teria de ser refeita a partir dos numeradores e denominadores somados, o que seria
+consolidar de fato.
+
+**A filiação é construção nossa, não dado do BCB.** O IF.data não publica o vínculo: os sete
+filtros do relatório não têm campo de sistema, os campos de conglomerado do cadastro só vêm
+preenchidos para conglomerados, e toda singular aparece como *"Instituição independente"* —
+o que, prudencialmente, ela é. O vínculo é deduzido da marca que aparece no campo
+`instituicao` do próprio IF.data, e cobre **598 de 953 cooperativas (63%)**. Credicitrus
+(R$ 9,0 bi), Viacredi (R$ 8,5 bi), Sisprime (R$ 5,6 bi) e Sul-Serrana (R$ 4,6 bi) não trazem
+marca no nome legal e seguem individuais. Não há chute de filiação.
+
+**O modo de falha é seguro:** um vínculo não reconhecido deixa a cooperativa sozinha na
+lista, que é o comportamento anterior. Nenhum número muda. Foi essa assimetria que decidiu
+entre agrupar e agregar: na agregação, o mesmo erro produziria um número errado.
+
+O agrupamento **não vale para os bancos cooperativos** — Banco Sicoob, Bco Cooperativo
+Sicredi são conglomerados prudenciais próprios, já consolidados pelo BCB, e juntá-los às
+singulares misturaria dois perímetros de consolidação num rótulo só.
+
+A agenda traz uma coluna **`Sistema`**, visível com o agrupamento ligado ou desligado — é ela
+que carrega o vínculo quando não há linha de sistema, seja porque a chave está desligada, seja
+porque só uma singular do sistema foi sinalizada. Travessão = banco, ou cooperativa sem marca
+no nome legal.
+
+A lista de filiação completa está em `verificacao/grupos_cooperativos.csv`, e o CSV de
+download da agenda sai **sempre por instituição**, com a mesma coluna `Sistema`: a tela agrupa
+para caber, o arquivo é o registro.
+
+**Por que não agregar de fato.** A hipótese foi medida antes de ser descartada: consolidando
+os sistemas, o **HHI vai de 990 para 1.004 e o CR5 não se move (66,1%)** — o topo já são os
+bancos grandes. Em troca, o grupo de pares `b3S` cairia de 154 para ~19 unidades, tornando os
+percentis grosseiros, e a Basileia teria de virar ΣPR/ΣRWA, que não é o índice regulatório.
+
 ---
 
 ## 7. Troca de indicador ao vivo
@@ -510,6 +566,7 @@ para 34 instituições (14 entradas, 1 saída).
 | `checa_dependencias.py` | app só importa o declarado no requirements | **OK** |
 | `testa_app.py` | painel não quebra em nenhum trimestre | **29/29** |
 | `checa_app_colunas.py` | regra dos 6 por pergunta | **6/6/6** |
+| `checa_grupos.py` | agrupar por sistema não altera número nenhum | **91 colunas idênticas** |
 | `rastreia_cartao.py` | cálculo passo a passo numa IF real | reprodutível |
 | `diagnostica_agenda.py` / `diagnostica_score.py` | por que duas listas e por que o destaque mudou | reprodutível |
 
@@ -528,3 +585,10 @@ estão sujeitos a reapresentação.
 
 Acrescente-se: **o score não mede relevância sistêmica**, e scores de grupos de pares
 diferentes não são diretamente comparáveis entre si.
+
+E mais uma, introduzida pelo agrupamento por sistema cooperativo (§6.1): a **filiação de uma
+cooperativa a um sistema não é dado do BCB**, é dedução nossa a partir da marca no nome
+publicado, e cobre 63% das cooperativas. Onde a marca não aparece no nome — Credicitrus,
+Viacredi, Sisprime, Sul-Serrana —, a cooperativa é lida como independente, e o painel
+**subestima** a presença desses sistemas. A linha de sistema é uma contagem de instituições
+sinalizadas, **não** um balanço consolidado do sistema.
