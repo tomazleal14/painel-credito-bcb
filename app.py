@@ -41,8 +41,8 @@ LIMIAR_BOOM = 0.15
 # atualizou" olhando a tela. VERSAO muda a cada alteracao que mexe nos numeros; a
 # impressao digital e do arquivo de dados. Se o que aparece no rodape da barra lateral
 # do Cloud nao bater com o local, o Cloud esta atrasado -- e nao ha o que depurar.
-VERSAO = ("2026-09-18c · linha de sistema passa a mostrar as razões do conjunto "
-          "(soma do numerador sobre soma do denominador); Basileia segue vazia")
+VERSAO = ("2026-09-18d · nota de leitura da linha de sistema; cache da base passa a "
+          "seguir o arquivo, para código novo não servir dado velho")
 
 st.set_page_config(page_title="Painel de Supervisão de Crédito — BCB",
                    page_icon="◧", layout="wide",
@@ -50,8 +50,28 @@ st.set_page_config(page_title="Painel de Supervisão de Crédito — BCB",
 
 
 # ------------------------------------------------------------------ dados
+def assinatura_dados() -> str:
+    """Impressão barata (tamanho + mtime) dos arquivos que `carrega` lê.
+
+    É a CHAVE do cache de `carrega`. Sem ela, `carrega()` não tem argumento nenhum e
+    o `@st.cache_data` devolve para sempre o primeiro resultado do processo: um
+    deploy que troca o .parquet mas reaproveita o processo serve CÓDIGO NOVO com
+    DADO VELHO. Foi o que aconteceu quando a linha de sistema passou a somar
+    inadimplência e provisão — os contadores, que são só código, apareceram; as
+    razões, que dependiam de duas colunas novas no arquivo, ficaram vazias.
+    """
+    partes = []
+    for nome in ("app_indicadores.parquet", "indicadores.parquet",
+                 "sgs_series.parquet", "scr_agregado.parquet"):
+        alvo = DATA_PROC / nome
+        if alvo.exists():
+            st_ = alvo.stat()
+            partes.append(f"{nome}:{st_.st_size}:{int(st_.st_mtime)}")
+    return "|".join(partes)
+
+
 @st.cache_data(show_spinner="Carregando base…")
-def carrega():
+def carrega(assinatura: str):
     # app_indicadores.parquet e a versao enxuta gerada por src/prepara_deploy.py (4 MB),
     # que e a versionada para o Streamlit Cloud. Em desenvolvimento local, cai no
     # arquivo completo se o enxuto ainda nao tiver sido gerado.
@@ -65,7 +85,7 @@ def carrega():
     return ind, sgs, scr, cat, defl
 
 
-ind, sgs, scr, cat_sgs, defl = carrega()
+ind, sgs, scr, cat_sgs, defl = carrega(assinatura_dados())
 BASE_DEFL = int(defl["base_do_indice"].iloc[0])
 
 # Rotulo de sistema cooperativo. E SO APRESENTACAO: nenhuma conta usa esta coluna --
@@ -246,8 +266,12 @@ st.sidebar.caption(
 
 
 @st.cache_data(show_spinner=False)
-def impressao_dados() -> str:
-    """Hash curto do arquivo de dados, para identificar o build servido."""
+def impressao_dados(assinatura: str = "") -> str:
+    """Hash curto do arquivo de dados, para identificar o build servido.
+
+    `assinatura` não é usada no corpo: existe só para o cache acompanhar a troca do
+    arquivo, pelo mesmo motivo de `carrega`.
+    """
     alvo = DATA_PROC / "app_indicadores.parquet"
     if not alvo.exists():
         alvo = DATA_PROC / "indicadores.parquet"
@@ -268,7 +292,7 @@ _trim_p1 = int(ind.loc[ind["p1_1_cresc_real_aa"].notna(), "data_base"].nunique()
 _linhas_fmt = f"{len(ind):,}".replace(",", ".")
 st.sidebar.caption(
     f"**Build:** {VERSAO}  \n"
-    f"dados `{impressao_dados()}` · {_linhas_fmt} linhas · "
+    f"dados `{impressao_dados(assinatura_dados())}` · {_linhas_fmt} linhas · "
     f"P1 com {_trim_p1} trimestres")
 
 
@@ -524,6 +548,49 @@ with aba0:
             })
         return pd.DataFrame(linhas)
 
+    def nota_sistemas(colapsada: pd.DataFrame) -> None:
+        """Explica a linha de sistema: o que cada coluna vira, e por que há vazios.
+
+        A linha agrupada troca o significado de sete colunas de uma vez. Sem esta nota
+        o leitor precisa abrir sete dicas de cabeçalho para descobrir que "0 de 11" é
+        informação e não ausência, e que o travessão da Basileia não é falta de dado.
+        O exemplo sai da própria seleção, para não descrever um recorte que não está
+        na tela.
+        """
+        sistemas = colapsada[colapsada["linha_tipo"] == "sistema"]
+        if sistemas.empty:
+            return
+        r = sistemas.iloc[0]
+        nome = str(r["grupo"]).upper()
+        n = int(r["n_sinalizadas"])
+        exemplo = (
+            f"A {nome} está <b>{int(r['n_alto_crescimento'])} de {n}</b> em crescimento "
+            f"e <b>{int(r['n_alto_concentracao'])} de {n}</b> em concentração: as "
+            f"sinalizadas entraram na agenda por um eixo, não pelo outro."
+        )
+        st.markdown(
+            f"<div class='aviso'><b>Como ler a linha de um sistema.</b> Ela descreve o "
+            f"<b>conjunto das singulares sinalizadas</b>, não o sistema inteiro — e não é "
+            f"um balanço consolidado.<br><br>"
+            f"<b>Carteira, crescimento, inadimplência e cobertura</b> somam o numerador e "
+            f"o denominador do conjunto (Σ ÷ Σ). Nunca a média das razões dos membros, que "
+            f"seria outra coisa.<br>"
+            f"<b>Cresc., Conc. e Deter.</b> deixam de ser semáforo e viram contagem: "
+            f"quantas singulares estão com risco alto naquele eixo. Semáforo é categoria, "
+            f"não se soma — mas contar não inventa nada. <b>“0 de {n}” não é falta de "
+            f"dado</b>, é a informação de que nenhuma delas está no topo daquele eixo. "
+            f"{exemplo}<br>"
+            f"<b>Basileia</b> fica <b>sempre</b> vazia, e não por falta de dado: capital "
+            f"de cooperativas juridicamente independentes não é fungível — nenhuma pode "
+            f"usar o capital da outra —, então a soma não é o índice de ninguém.<br>"
+            f"<b>As demais só ficam vazias</b> quando o conjunto medido não seria o "
+            f"conjunto anunciado na linha: o crescimento exige todos os membros já "
+            f"existindo 12 meses antes, e desaparece em todos os trimestres de 2025 pela "
+            f"quebra da Res. 4.966; inadimplência e cobertura exigem o numerador em todos "
+            f"os membros, porque um ausente encolheria só o numerador."
+            f"</div>",
+            unsafe_allow_html=True)
+
     def detalha_sistemas(colapsada: pd.DataFrame, completa: pd.DataFrame) -> None:
         """Abre, sistema a sistema, as singulares que a linha agrupada representa."""
         sistemas = colapsada[colapsada["linha_tipo"] == "sistema"]
@@ -673,6 +740,7 @@ with aba0:
             st.dataframe(monta_tabela(vis), width='stretch', hide_index=True,
                          height=min(560, 60 + 35 * len(vis)), column_config=COLUNAS)
             if agrupar:
+                nota_sistemas(vis)
                 detalha_sistemas(vis, lista)
 
     with t2:
