@@ -29,6 +29,11 @@ NIVEIS = ["carteira_credito_real", "carteira_credito", "share_carteira",
           "reg_sudeste_real", "reg_sul_real", "reg_nordeste_real",
           "reg_norte_real", "reg_centro_oeste_real",
           "pj_total_porte_real", "pj_porte_grande_real",
+          # numerador e denominador da linha de SISTEMA da agenda: quando varias
+          # singulares do mesmo sistema estao sinalizadas, a linha agrupada mostra
+          # Sigma(atraso)/Sigma(carteira) e Sigma(provisao)/Sigma(atraso). Sao somas de
+          # nivel -- a razao do conjunto --, nao media das razoes dos membros.
+          "inadimplencia_valor_real", "provisao_credito_real",
           "ctx_ticket_medio_real",   # contexto descritivo, fora do score
           # guarda de ticket de P2 nº 3: o limiar do trimestre e a marca de quem ficou
           # acima dele. Vao para o arquivo publicado porque sustentam a explicacao do

@@ -84,6 +84,32 @@ def main() -> None:
         exige(bool((piores["n_recorte"] >= piores["n_sinalizadas"]).all()),
               f"{dt}: denominador do sistema nunca menor que o numerador")
 
+    print("\n== razoes do conjunto na linha de sistema ==")
+    # Uma razao de somas e media PONDERADA das razoes dos membros: tem de cair
+    # entre o menor e o maior valor individual. Se sair fora, o numerador e o
+    # denominador nao vieram do mesmo conjunto -- que e exatamente o erro que a
+    # regra de "todos os membros presentes" existe para impedir.
+    PARES = (("agg_cresc", "p1_1_cresc_real_aa"),
+             ("agg_inadimplencia", "p3_1_inadimplencia"),
+             ("agg_cobertura", "p3_2_cobertura"))
+    for dt in sorted(d["data_base"].unique())[-4:]:
+        ag = agenda(com, int(dt), minimo_carteira=1e9, limiar=0.65)
+        univ = com[(com["data_base"] == dt) & (com["carteira_credito_real"] >= 1e9)]
+        col = grupos.colapsa(ag, univ, hist=com)
+        for r in col[col["linha_tipo"] == "sistema"].itertuples():
+            membros = grupos.membros(ag, r.grupo)
+            for campo, individual in PARES:
+                v = getattr(r, campo)
+                if v is None or pd.isna(v):
+                    continue
+                lo, hi = membros[individual].min(), membros[individual].max()
+                exige(bool(lo - 1e-9 <= v <= hi + 1e-9),
+                      f"{dt} {r.grupo}: {campo} {v:.4f} dentro de "
+                      f"[{lo:.4f}, {hi:.4f}] dos membros")
+            # Basileia e a unica que NAO pode ser agregada
+            exige(not hasattr(r, "agg_basileia"),
+                  f"{dt} {r.grupo}: Basileia nao e agregada")
+
     print("\n== cobertura da regra ==")
     cob = grupos.cobertura(d)
     tot = int(cob["cooperativas"].sum())

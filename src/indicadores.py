@@ -260,6 +260,11 @@ def calcula() -> pd.DataFrame:
     df["_provisao_real"] = (df["perda_esperada_real"]
                             .fillna(df.get("provisao_antiga_real"))
                             .abs())
+    # Publicada (sem o prefixo _) porque a linha de SISTEMA da agenda soma provisao e
+    # atraso das singulares para calcular a cobertura do conjunto -- somar numerador e
+    # denominador, nunca media de razoes. Ver src/grupos.py e src/prepara_deploy.py.
+    # O sinal ja vem corrigido acima: quem consumir esta coluna nao repete o abs().
+    df["provisao_credito_real"] = df["_provisao_real"]
 
     carteira_pos = df["carteira_credito_real"].where(df["carteira_credito_real"] > 0)
     df["p3_1_inadimplencia"] = df["_atraso_real"] / carteira_pos          # 90+ , 2025+

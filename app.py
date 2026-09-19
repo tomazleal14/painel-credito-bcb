@@ -41,8 +41,8 @@ LIMIAR_BOOM = 0.15
 # atualizou" olhando a tela. VERSAO muda a cada alteracao que mexe nos numeros; a
 # impressao digital e do arquivo de dados. Se o que aparece no rodape da barra lateral
 # do Cloud nao bater com o local, o Cloud esta atrasado -- e nao ha o que depurar.
-VERSAO = ("2026-09-18b · agenda agrupada por sistema cooperativo (só apresentação), "
-          "com coluna Sistema na tela; comparador não perde mais coluna por nome repetido")
+VERSAO = ("2026-09-18c · linha de sistema passa a mostrar as razões do conjunto "
+          "(soma do numerador sobre soma do denominador); Basileia segue vazia")
 
 st.set_page_config(page_title="Painel de Supervisão de Crédito — BCB",
                    page_icon="◧", layout="wide",
@@ -501,13 +501,25 @@ with aba0:
                 "Seg.": "—" if sis else r.segmento_sr,
                 "Carteira": (getattr(r, "carteira_grupo", r.carteira_credito_real)
                              if sis else r.carteira_credito_real) / 1e9,
-                "Cresc. real a.a.": pc(r.p1_1_cresc_real_aa, not sis),
-                "Inadimpl.": pc(r.p3_1_inadimplencia, not sis),
-                "Cobertura": pc(r.p3_2_cobertura, not sis),
+                # Na linha de sistema, estas três são a razão DO CONJUNTO — soma do
+                # numerador sobre soma do denominador, calculada em grupos.agrega.
+                # Nunca a média das razões, e nunca o número da representante.
+                "Cresc. real a.a.": (pc(getattr(r, "agg_cresc", None)) if sis
+                                     else pc(r.p1_1_cresc_real_aa)),
+                "Inadimpl.": (pc(getattr(r, "agg_inadimplencia", None)) if sis
+                              else pc(r.p3_1_inadimplencia)),
+                "Cobertura": (pc(getattr(r, "agg_cobertura", None)) if sis
+                              else pc(r.p3_2_cobertura)),
+                # Basileia não: capital de cooperativas independentes não é fungível,
+                # e ΣPR/ΣRWA não é o índice de nenhuma delas.
                 "Basileia": pc(r.indice_basileia, not sis),
-                "Cresc.": "—" if sis else ICONE_SEMAFORO[r.sem_crescimento],
-                "Conc.": "—" if sis else ICONE_SEMAFORO[r.sem_concentracao],
-                "Deter.": "—" if sis else ICONE_SEMAFORO[r.sem_deterioracao],
+                # Semáforo é categoria: não se soma, mas se conta.
+                "Cresc.": (f"{getattr(r, 'n_alto_crescimento', 0)} de {r.n_sinalizadas}"
+                           if sis else ICONE_SEMAFORO[r.sem_crescimento]),
+                "Conc.": (f"{getattr(r, 'n_alto_concentracao', 0)} de {r.n_sinalizadas}"
+                          if sis else ICONE_SEMAFORO[r.sem_concentracao]),
+                "Deter.": (f"{getattr(r, 'n_alto_deterioracao', 0)} de {r.n_sinalizadas}"
+                           if sis else ICONE_SEMAFORO[r.sem_deterioracao]),
                 "Score": r.score_final,
             })
         return pd.DataFrame(linhas)
@@ -579,21 +591,31 @@ with aba0:
             "Cresc. real a.a.",
             help="Crescimento da carteira em 12 meses, já descontada a inflação. "
                  "É a variável-mestra de P1: acima de 15% a.a. real é o limiar de "
-                 "crescimento acelerado adotado aqui."),
+                 "crescimento acelerado adotado aqui. Na linha de um sistema é o "
+                 "crescimento DO CONJUNTO sinalizado — carteira somada de hoje sobre "
+                 "carteira somada de 12 meses atrás —, e fica vazio se algum membro "
+                 "não existia lá atrás."),
         "Inadimpl.": st.column_config.TextColumn(
             "Inadimpl.",
             help="Carteira em atraso acima de 90 dias, sobre a carteira total. "
                  "Cuidado com o efeito denominador: carteira que cresce rápido dilui "
-                 "este índice e esconde perda futura."),
+                 "este índice e esconde perda futura. Na linha de um sistema é o "
+                 "atraso somado sobre a carteira somada do conjunto sinalizado — a "
+                 "razão do conjunto, não a média das razões dos membros."),
         "Cobertura": st.column_config.TextColumn(
             "Cobertura",
             help="Provisão dividida pela carteira em atraso. 100% cobre integralmente "
-                 "o atraso; abaixo disso há perda ainda não reconhecida no balanço."),
+                 "o atraso; abaixo disso há perda ainda não reconhecida no balanço. "
+                 "Na linha de um sistema é a provisão somada sobre o atraso somado do "
+                 "conjunto sinalizado."),
         "Basileia": st.column_config.TextColumn(
             "Basileia",
             help="Índice de Basileia: capital sobre ativos ponderados pelo risco. "
                  "O mínimo de referência é 10,5% (8% de requisito mais 2,5% de "
-                 "conservação)."),
+                 "conservação). É a ÚNICA coluna que fica vazia na linha de um "
+                 "sistema, e não por falta de dado: capital de cooperativas "
+                 "juridicamente independentes não é fungível — nenhuma pode usar o "
+                 "capital da outra —, então a soma não é o índice de ninguém."),
         "Cresc.": st.column_config.TextColumn("Cresc.", width="small",
                                               help="Semáforo do eixo Crescimento."),
         "Conc.": st.column_config.TextColumn("Conc.", width="small",
@@ -623,7 +645,9 @@ with aba0:
              "detalhamento e no CSV. A filiação é deduzida da marca no nome "
              "publicado pelo IF.data — que não divulga o vínculo —, e cobre 63% "
              "das cooperativas; as demais seguem individuais.")
-    vis = grupos.colapsa(lista, univ) if agrupar else lista
+    # `scored` vai como histórico: o crescimento do conjunto precisa da carteira
+    # somada de quatro trimestres antes, que não está na lista do trimestre.
+    vis = grupos.colapsa(lista, univ, hist=scored) if agrupar else lista
 
     t1, t2 = st.tabs([f"Atípicas no grupo de pares ({len(vis)})",
                       f"Grandes com sinal ({len(lista_grandes)})"])

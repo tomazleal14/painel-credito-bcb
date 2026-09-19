@@ -494,10 +494,36 @@ Colapsadas, as linhas dizem algo que antes não se via:
 **É agrupamento, não consolidação.** Nenhum indicador, percentil ou score é recalculado;
 cada singular continua pontuada individualmente no grupo de pares dela. `src/checa_grupos.py`
 verifica que as 91 colunas numéricas da base ficam idênticas com e sem a coluna de sistema.
-Na linha de sistema, só a **carteira** é somada — nível soma. Inadimplência, cobertura,
-Basileia e crescimento saem **vazias**: razão de conjunto não é média das razões dos membros,
-e teria de ser refeita a partir dos numeradores e denominadores somados, o que seria
-consolidar de fato.
+
+O que a linha de sistema exibe segue uma regra só: **soma-se o numerador e o denominador,
+nunca a razão**. Média de razões não é a razão do conjunto; `Σnumerador ÷ Σdenominador` é — e
+é assim que se calcula número de sistema. Em 03/2026:
+
+| | Cresol (11 sinalizadas) | Sicoob (2) |
+|---|---|---|
+| Crescimento do conjunto | 29,90% | 38,00% |
+| Inadimplência do conjunto | 5,74% | 9,60% |
+| Cobertura do conjunto | **72,46%** | 137,76% |
+| Semáforos altos (cresc./conc./deter.) | 8 · 0 · 4 de 11 | 2 · 0 · 0 de 2 |
+
+A leitura que só aparece agregada: o conjunto Cresol sinalizado cresce 30% ao ano com
+inadimplência de 5,7% e **provisão abaixo do atraso**, e a pressão está em crescimento (8 de
+11), não em concentração (0 de 11).
+
+**Basileia é a única razão que fica vazia, e não por falta de dado.** PR e RWA existem, e
+somados dariam 16,21% para a Cresol. Mas capital de cooperativas juridicamente independentes
+não é fungível — nenhuma pode usar o capital da outra, cada uma responde pelo próprio
+requisito —, então `ΣPR ÷ ΣRWA` não é o índice de ninguém.
+
+Três regras de ausência, todas no mesmo espírito — se o conjunto medido não é o conjunto
+anunciado na linha, o campo fica vazio: o crescimento exige **todos** os membros presentes
+também quatro trimestres antes; inadimplência e cobertura exigem o numerador em **todos** os
+membros (um ausente encolheria só o numerador); e o crescimento respeita a máscara da Res.
+4.966, o que na prática deixa a coluna vazia em todos os trimestres de 2025.
+
+`checa_grupos.py` trava a propriedade que decorre disso: uma razão de somas é média
+**ponderada** das razões dos membros, logo tem de cair entre o menor e o maior valor
+individual. Se sair fora, numerador e denominador vieram de conjuntos diferentes.
 
 **A filiação é construção nossa, não dado do BCB.** O IF.data não publica o vínculo: os sete
 filtros do relatório não têm campo de sistema, os campos de conglomerado do cadastro só vêm
